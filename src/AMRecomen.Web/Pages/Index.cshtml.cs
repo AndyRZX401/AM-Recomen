@@ -67,9 +67,14 @@ public class IndexModel : PageModel
         if (!_cache.TryGetValue(cacheKey, out object? cached) || cached is not IEnumerable<MediaItem> items)
         {
             items = await _mediaRepository.GetTopTrendingAsync(type, count);
-            var cacheOptions = new MemoryCacheEntryOptions()
-                .SetAbsoluteExpiration(TimeSpan.FromMinutes(10));
-            _cache.Set(cacheKey, items, cacheOptions);
+            var list = items.ToList();
+            if (list.Any())
+            {
+                var cacheOptions = new MemoryCacheEntryOptions()
+                    .SetAbsoluteExpiration(TimeSpan.FromMinutes(10));
+                _cache.Set(cacheKey, (IEnumerable<MediaItem>)list, cacheOptions);
+            }
+            return list;
         }
         return items;
     }

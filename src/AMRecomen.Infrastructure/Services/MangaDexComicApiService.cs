@@ -25,17 +25,22 @@ public class MangaDexComicApiService : IComicApiService
     {
         try
         {
-            // Buscamos mangas que sean ko (manhwa) o zh/zh-hk (manhua)
-            var response = await _httpClient.GetAsync($"manga?title={Uri.EscapeDataString(query)}&limit=10&includes[]=cover_art&originalLanguage[]=ko&originalLanguage[]=zh&originalLanguage[]=zh-hk");
+            // Buscamos mangas que sean ko (manhwa) o zh/zh-hk (manhua) con corchetes codificados
+            var response = await _httpClient.GetAsync($"manga?title={Uri.EscapeDataString(query)}&limit=10&includes%5B%5D=cover_art&originalLanguage%5B%5D=ko&originalLanguage%5B%5D=zh&originalLanguage%5B%5D=zh-hk");
             if (!response.IsSuccessStatusCode)
                 return GetMockComics().Where(m => m.Title.Contains(query, StringComparison.OrdinalIgnoreCase));
 
             var jsonString = await response.Content.ReadAsStringAsync();
             using var doc = JsonDocument.Parse(jsonString);
             if (!doc.RootElement.TryGetProperty("data", out var dataElement) || dataElement.ValueKind != JsonValueKind.Array)
-                return Enumerable.Empty<ExternalMediaResult>();
+                return GetMockComics().Where(m => m.Title.Contains(query, StringComparison.OrdinalIgnoreCase));
 
-            return ParseMangaDexArray(dataElement);
+            var results = ParseMangaDexArray(dataElement).ToList();
+            if (!results.Any())
+            {
+                return GetMockComics().Where(m => m.Title.Contains(query, StringComparison.OrdinalIgnoreCase));
+            }
+            return results;
         }
         catch
         {
@@ -47,18 +52,23 @@ public class MangaDexComicApiService : IComicApiService
     {
         try
         {
-            string langParam = isManhwa ? "originalLanguage[]=ko" : "originalLanguage[]=zh&originalLanguage[]=zh-hk";
+            string langParam = isManhwa ? "originalLanguage%5B%5D=ko" : "originalLanguage%5B%5D=zh&originalLanguage%5B%5D=zh-hk";
             
-            var response = await _httpClient.GetAsync($"manga?limit=10&order[followedCount]=desc&includes[]=cover_art&{langParam}");
+            var response = await _httpClient.GetAsync($"manga?limit=10&order%5BfollowedCount%5D=desc&includes%5B%5D=cover_art&{langParam}");
             if (!response.IsSuccessStatusCode)
                 return GetMockComics().Where(c => c.Type == (isManhwa ? MediaType.Manhwa : MediaType.Manhua));
 
             var jsonString = await response.Content.ReadAsStringAsync();
             using var doc = JsonDocument.Parse(jsonString);
             if (!doc.RootElement.TryGetProperty("data", out var dataElement) || dataElement.ValueKind != JsonValueKind.Array)
-                return Enumerable.Empty<ExternalMediaResult>();
+                return GetMockComics().Where(c => c.Type == (isManhwa ? MediaType.Manhwa : MediaType.Manhua));
 
-            return ParseMangaDexArray(dataElement);
+            var results = ParseMangaDexArray(dataElement).ToList();
+            if (!results.Any())
+            {
+                return GetMockComics().Where(c => c.Type == (isManhwa ? MediaType.Manhwa : MediaType.Manhua));
+            }
+            return results;
         }
         catch
         {
@@ -71,7 +81,7 @@ public class MangaDexComicApiService : IComicApiService
         var cleanId = externalId.Replace("mangadex_", "");
         try
         {
-            var response = await _httpClient.GetAsync($"manga/{cleanId}?includes[]=cover_art");
+            var response = await _httpClient.GetAsync($"manga/{cleanId}?includes%5B%5D=cover_art");
             if (!response.IsSuccessStatusCode)
                 return GetMockComics().FirstOrDefault(c => c.ExternalId == externalId);
 
