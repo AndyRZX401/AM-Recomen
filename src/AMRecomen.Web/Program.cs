@@ -18,42 +18,38 @@ builder.Services.AddMemoryCache();
 
 // 1. Configurar base de datos con resiliencia de arranque (PostgreSQL principal, SQLite de respaldo)
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-bool usePostgres = false;
-
-try
-{
-    // Intentar una conexión de prueba rápida con un timeout de 2 segundos
-    var connStringBuilder = new NpgsqlConnectionStringBuilder(connectionString)
-    {
-        Timeout = 2 // 2 segundos max de espera
-    };
-    
-    using var conn = new NpgsqlConnection(connStringBuilder.ConnectionString);
-    conn.Open();
-    usePostgres = true;
-}
-catch
-{
-    // PostgreSQL está offline o las credenciales no son válidas
-}
+bool usePostgres = !string.IsNullOrEmpty(connectionString) && 
+                   !connectionString.Contains("localhost") && 
+                   !connectionString.Contains("127.0.0.1");
 
 if (usePostgres)
 {
     Console.ForegroundColor = ConsoleColor.Green;
-    Console.WriteLine(">> [BD] Conectado a PostgreSQL (Gama Alta). Cargando base de datos de producción...");
+    Console.WriteLine(">> [BD] Conectado a PostgreSQL (Gama Alta) de forma determinista...");
     Console.ResetColor();
     
     builder.Services.AddDbContext<AppDbContext>(options =>
-        options.UseNpgsql(connectionString));
+        options.UseNpgsql(connectionString, npgsqlOptions =>
+        {
+            npgsqlOptions.EnableRetryOnFailure(5, TimeSpan.FromSeconds(10), null);
+        }));
 }
 else
 {
     Console.ForegroundColor = ConsoleColor.Yellow;
-    Console.WriteLine(">> [BD] Servidor PostgreSQL offline en localhost:5432. Iniciando base de datos SQLite de respaldo local...");
+    Console.WriteLine(">> [BD] Servidor PostgreSQL local u offline. Iniciando base de datos SQLite...");
     Console.ResetColor();
     
+    // Detectar volumen persistente de Render (/data) para evitar pérdidas de datos al reiniciar la app
+    string dbFolder = "/data";
+    if (!Directory.Exists(dbFolder))
+    {
+        dbFolder = AppDomain.CurrentDomain.BaseDirectory;
+    }
+    string dbPath = Path.Combine(dbFolder, "am_recomen.db");
+    
     builder.Services.AddDbContext<AppDbContext>(options =>
-        options.UseSqlite("Data Source=am_recomen.db"));
+        options.UseSqlite($"Data Source={dbPath}"));
 }
 
 // Registrar Servicio de Traducción Resiliente

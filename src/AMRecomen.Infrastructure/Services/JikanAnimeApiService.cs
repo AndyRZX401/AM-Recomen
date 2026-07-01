@@ -28,7 +28,7 @@ public class JikanAnimeApiService : IAnimeApiService
         {
             var response = await _httpClient.GetAsync($"anime?q={Uri.EscapeDataString(query)}&limit=10");
             if (!response.IsSuccessStatusCode)
-                return Enumerable.Empty<ExternalMediaResult>();
+                return GetMockAnime().Where(m => m.Title.Contains(query, StringComparison.OrdinalIgnoreCase));
 
             var jsonString = await response.Content.ReadAsStringAsync();
             using var doc = JsonDocument.Parse(jsonString);
@@ -39,7 +39,7 @@ public class JikanAnimeApiService : IAnimeApiService
         }
         catch
         {
-            return Enumerable.Empty<ExternalMediaResult>();
+            return GetMockAnime().Where(m => m.Title.Contains(query, StringComparison.OrdinalIgnoreCase));
         }
     }
 
@@ -51,7 +51,7 @@ public class JikanAnimeApiService : IAnimeApiService
             await Task.Delay(500);
             var response = await _httpClient.GetAsync("top/anime?filter=bypopularity&limit=10");
             if (!response.IsSuccessStatusCode)
-                return Enumerable.Empty<ExternalMediaResult>();
+                return GetMockAnime();
 
             var jsonString = await response.Content.ReadAsStringAsync();
             using var doc = JsonDocument.Parse(jsonString);
@@ -62,7 +62,7 @@ public class JikanAnimeApiService : IAnimeApiService
         }
         catch
         {
-            return Enumerable.Empty<ExternalMediaResult>();
+            return GetMockAnime();
         }
     }
 
@@ -77,7 +77,7 @@ public class JikanAnimeApiService : IAnimeApiService
             await Task.Delay(500);
             var response = await _httpClient.GetAsync($"anime/{malId}");
             if (!response.IsSuccessStatusCode)
-                return null;
+                return GetMockAnime().FirstOrDefault(m => m.ExternalId == externalId);
 
             var jsonString = await response.Content.ReadAsStringAsync();
             using var doc = JsonDocument.Parse(jsonString);
@@ -88,7 +88,7 @@ public class JikanAnimeApiService : IAnimeApiService
         }
         catch
         {
-            return null;
+            return GetMockAnime().FirstOrDefault(m => m.ExternalId == externalId);
         }
     }
 
@@ -193,5 +193,60 @@ public class JikanAnimeApiService : IAnimeApiService
         {
             return null;
         }
+    }
+
+    private IEnumerable<ExternalMediaResult> GetMockAnime()
+    {
+        return new List<ExternalMediaResult>
+        {
+            new()
+            {
+                ExternalId = "jikan_mock1",
+                Title = "Frieren: Tras el final del viaje",
+                EnglishTitle = "Frieren: Beyond Journey's End",
+                OriginalTitle = "Sousou no Frieren",
+                AlternativeTitles = new List<string> { "Sousou no Frieren", "Frieren" },
+                Synopsis = "El mago elfo Frieren y sus valientes compañeros de aventura han derrotado al Rey Demonio, trayendo la paz a la tierra. Tras el fin de la gran contienda, todos toman caminos separados para vivir una vida tranquila.",
+                CoverImageUrl = "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=500",
+                Type = MediaType.Anime,
+                Rating = 9.4,
+                Status = "Finished",
+                ReleaseDate = new DateTime(2023, 9, 29),
+                PopularityScore = 950.0,
+                Genres = new List<string> { "Fantasía", "Aventura", "Drama" }
+            },
+            new()
+            {
+                ExternalId = "jikan_mock2",
+                Title = "Demon Slayer: Kimetsu no Yaiba",
+                EnglishTitle = "Demon Slayer: Kimetsu no Yaiba",
+                OriginalTitle = "Kimetsu no Yaiba",
+                AlternativeTitles = new List<string> { "Kimetsu no Yaiba", "Guardianes de la Noche" },
+                Synopsis = "Tanjiro Kamado es un chico inteligente y de buen corazón que vive con su familia en las montañas. Todo cambia cuando su familia es atacada y asesinada por un demonio, sobreviviendo solo su hermana Nezuko, quien se ha transformado en demonio.",
+                CoverImageUrl = "https://images.unsplash.com/photo-1578632767115-351597cf2477?w=500",
+                Type = MediaType.Anime,
+                Rating = 8.7,
+                Status = "Running",
+                ReleaseDate = new DateTime(2019, 4, 6),
+                PopularityScore = 920.0,
+                Genres = new List<string> { "Acción", "Fantasía", "Histórico" }
+            },
+            new()
+            {
+                ExternalId = "jikan_mock3",
+                Title = "One Piece",
+                EnglishTitle = "One Piece",
+                OriginalTitle = "One Piece",
+                AlternativeTitles = new List<string> { "OP", "Monkey D. Luffy" },
+                Synopsis = "Rica, fama, poder... el Rey de los Piratas Gold Roger obtuvo todo en este mundo. Antes de morir, sus últimas palabras inspiraron a miles a hacerse a la mar en busca de su gran tesoro: el One Piece.",
+                CoverImageUrl = "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=500",
+                Type = MediaType.Anime,
+                Rating = 8.9,
+                Status = "Running",
+                ReleaseDate = new DateTime(1999, 10, 20),
+                PopularityScore = 990.0,
+                Genres = new List<string> { "Aventura", "Fantasía", "Comedia" }
+            }
+        };
     }
 }

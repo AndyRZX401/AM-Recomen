@@ -23,9 +23,17 @@ public class TmdbMovieApiService : IMovieApiService
         _apiKey = configuration["TMDb:ApiKey"] ?? string.Empty;
     }
 
+    private bool UseMock()
+    {
+        return string.IsNullOrWhiteSpace(_apiKey) || 
+               _apiKey.Length < 15 || 
+               _apiKey.Contains("clave", StringComparison.OrdinalIgnoreCase) ||
+               _apiKey.Contains("placeholder", StringComparison.OrdinalIgnoreCase);
+    }
+
     public async Task<IEnumerable<ExternalMediaResult>> SearchMoviesAsync(string query)
     {
-        if (string.IsNullOrWhiteSpace(_apiKey))
+        if (UseMock())
         {
             // Retornar coincidencia mockeada si no hay API Key
             return GetMockMovies()
@@ -55,7 +63,7 @@ public class TmdbMovieApiService : IMovieApiService
 
     public async Task<IEnumerable<ExternalMediaResult>> GetTrendingMoviesAsync()
     {
-        if (string.IsNullOrWhiteSpace(_apiKey))
+        if (UseMock())
         {
             return GetMockMovies();
         }
@@ -82,7 +90,7 @@ public class TmdbMovieApiService : IMovieApiService
     public async Task<ExternalMediaResult?> GetMovieByIdAsync(string externalId)
     {
         var cleanId = externalId.Replace("tmdb_", "");
-        if (string.IsNullOrWhiteSpace(_apiKey))
+        if (UseMock())
         {
             return GetMockMovies().FirstOrDefault(m => m.ExternalId == externalId);
         }
@@ -264,7 +272,7 @@ public class TmdbMovieApiService : IMovieApiService
 
     public async Task<IEnumerable<ExternalMediaResult>> SearchSeriesAsync(string query)
     {
-        if (string.IsNullOrWhiteSpace(_apiKey))
+        if (UseMock())
         {
             return GetMockSeries()
                 .Where(m => m.Title.Contains(query, StringComparison.OrdinalIgnoreCase) || 
@@ -293,7 +301,7 @@ public class TmdbMovieApiService : IMovieApiService
 
     public async Task<IEnumerable<ExternalMediaResult>> GetTrendingSeriesAsync()
     {
-        if (string.IsNullOrWhiteSpace(_apiKey))
+        if (UseMock())
         {
             return GetMockSeries();
         }
@@ -320,7 +328,7 @@ public class TmdbMovieApiService : IMovieApiService
     public async Task<ExternalMediaResult?> GetSeriesByIdAsync(string externalId)
     {
         var cleanId = externalId.Replace("tmdb_tv_", "");
-        if (string.IsNullOrWhiteSpace(_apiKey))
+        if (UseMock())
         {
             return GetMockSeries().FirstOrDefault(m => m.ExternalId == externalId);
         }
