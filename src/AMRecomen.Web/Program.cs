@@ -18,6 +18,42 @@ builder.Services.AddMemoryCache();
 
 // 1. Configurar base de datos con resiliencia de arranque (PostgreSQL principal, SQLite de respaldo)
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+
+// Convertir automáticamente formato de URI de Render (postgres:// o postgresql://) a formato estándar de ADO.NET compatible con Npgsql
+if (!string.IsNullOrEmpty(connectionString) && (connectionString.StartsWith("postgres://") || connectionString.StartsWith("postgresql://")))
+{
+    try
+    {
+        var parts = connectionString.Split(';', 2);
+        var uriPart = parts[0];
+        var extraParams = parts.Length > 1 ? parts[1] : "";
+        
+        var uriString = uriPart.Replace("postgresql://", "postgres://");
+        var uri = new Uri(uriString);
+        var userInfo = uri.UserInfo.Split(':');
+        var username = userInfo[0];
+        var password = userInfo.Length > 1 ? userInfo[1] : "";
+        var host = uri.Host;
+        var port = uri.Port > 0 ? uri.Port : 5432;
+        var database = uri.AbsolutePath.TrimStart('/');
+        
+        connectionString = $"Host={host};Port={port};Database={database};Username={username};Password={password}";
+        
+        if (!string.IsNullOrEmpty(extraParams))
+        {
+            connectionString += $";{extraParams}";
+        }
+        else
+        {
+            connectionString += ";SSL Mode=Require;Trust Server Certificate=true";
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($">> [BD] Error al parsear URI de PostgreSQL: {ex.Message}. Se usará la cadena original.");
+    }
+}
+
 bool usePostgres = !string.IsNullOrEmpty(connectionString) && 
                    !connectionString.Contains("localhost") && 
                    !connectionString.Contains("127.0.0.1");
@@ -40,9 +76,25 @@ else
     Console.WriteLine(">> [BD] Servidor PostgreSQL local u offline. Iniciando base de datos SQLite...");
     Console.ResetColor();
     
-    // Detectar volumen persistente de Render (/data) para evitar pérdidas de datos al reiniciar la app
+    // Detectar volumen persistente de Render (/data) y verificar permisos reales de escritura para evitar caídas
     string dbFolder = "/data";
-    if (!Directory.Exists(dbFolder))
+    bool canWrite = false;
+    try
+    {
+        if (Directory.Exists(dbFolder))
+        {
+            string testFile = Path.Combine(dbFolder, ".write_test");
+            File.WriteAllText(testFile, "test");
+            File.Delete(testFile);
+            canWrite = true;
+        }
+    }
+    catch
+    {
+        canWrite = false;
+    }
+
+    if (!canWrite)
     {
         dbFolder = AppDomain.CurrentDomain.BaseDirectory;
     }
