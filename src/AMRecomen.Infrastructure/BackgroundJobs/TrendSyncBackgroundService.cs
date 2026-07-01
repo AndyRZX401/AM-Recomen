@@ -110,6 +110,25 @@ public class TrendSyncBackgroundService : BackgroundService
                     existing.HypeScore = hypeScore;
                     existing.Rating = ext.Rating > 0 ? ext.Rating : existing.Rating;
                     existing.Status = !string.IsNullOrEmpty(ext.Status) ? ext.Status : existing.Status;
+                    
+                    // Reparar portadas o sinopsis que hayan quedado vacías o con placeholder temporal
+                    if (!string.IsNullOrEmpty(ext.CoverImageUrl) && (string.IsNullOrEmpty(existing.CoverImageUrl) || existing.CoverImageUrl.Contains("unsplash.com") || existing.CoverImageUrl.EndsWith("/covers/") || existing.CoverImageUrl.Contains("placeholder")))
+                    {
+                        existing.CoverImageUrl = ext.CoverImageUrl;
+                    }
+                    if (!string.IsNullOrEmpty(ext.Synopsis) && (string.IsNullOrEmpty(existing.Synopsis) || existing.Synopsis.Length < ext.Synopsis.Length))
+                    {
+                        existing.Synopsis = ext.Synopsis;
+                    }
+                    if (ext.ReleaseDate.HasValue && !existing.ReleaseDate.HasValue)
+                    {
+                        existing.ReleaseDate = ext.ReleaseDate;
+                    }
+                    if (!string.IsNullOrEmpty(ext.Title) && string.IsNullOrEmpty(existing.Title))
+                    {
+                        existing.Title = ext.Title;
+                    }
+                    
                     existing.UpdatedAt = DateTime.UtcNow;
 
                     await mediaRepository.UpdateAsync(existing);
