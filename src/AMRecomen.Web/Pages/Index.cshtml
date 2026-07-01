@@ -1,0 +1,286 @@
+@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Inicio";
+    ViewData["MetaDescription"] = "Encuentra recomendaciones automáticas de anime, manhwas, manhuas y películas basadas en las últimas tendencias y volumen de tráfico en internet.";
+}
+
+@if (Model.IsSearch)
+{
+    <!-- Vista de Resultados de Búsqueda -->
+    <div class="space-y-8 animate-fade-in">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-800 pb-5">
+            <div>
+                <h1 class="font-display font-extrabold text-3xl sm:text-4xl text-white">
+                    Resultados de Búsqueda
+                </h1>
+                <p class="text-gray-400 mt-1">Mostrando resultados para: <span class="text-brand-400 font-semibold">"@Model.Q"</span></p>
+            </div>
+            
+            <!-- Buscador secundario -->
+            <form method="get" class="w-full md:w-96 relative">
+                <input type="text" name="Q" value="@Model.Q" placeholder="Buscar otra serie o película..." 
+                       class="w-full bg-gray-900/60 border border-gray-700 rounded-xl py-3 px-4 pr-12 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all" />
+                <button type="submit" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-brand-400 transition-colors">
+                    <i class="fa-solid fa-magnifying-glass text-lg"></i>
+                </button>
+            </form>
+        </div>
+
+        @if (!Model.SearchResults.Any())
+        {
+            <div class="glass rounded-2xl p-12 text-center max-w-xl mx-auto space-y-4">
+                <div class="inline-flex p-4 bg-red-500/10 rounded-full text-red-500">
+                    <i class="fa-solid fa-circle-exclamation text-3xl"></i>
+                </div>
+                <h3 class="text-xl font-bold text-white">No encontramos coincidencias</h3>
+                <p class="text-gray-400">
+                    El motor de búsqueda en tiempo real intentó consultar las bases de datos globales pero no encontró ninguna serie o película llamada "@Model.Q".
+                </p>
+                <a asp-page="/Index" class="inline-flex items-center justify-center px-6 py-3 bg-brand-600 hover:bg-brand-500 text-white font-medium rounded-xl transition-all shadow-lg shadow-brand-500/20">
+                    Volver al Inicio
+                </a>
+            </div>
+        }
+        else
+        {
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                @foreach (var item in Model.SearchResults)
+                {
+                    <a asp-page="/Detalle" asp-route-slug="@item.Slug" class="group flex flex-col glass glass-hover rounded-2xl overflow-hidden glow-card">
+                        <!-- Portada -->
+                        <div class="relative aspect-[2/3] w-full overflow-hidden bg-gray-900">
+                            <img src="@item.CoverImageUrl" alt="@item.Title" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
+                            
+                            <!-- Badge de Tipo -->
+                            <span class="absolute top-3 left-3 px-2.5 py-1 rounded-md text-xs font-semibold uppercase tracking-wider backdrop-blur-md border border-white/10
+                                  @(item.Type == AMRecomen.Domain.Enums.MediaType.Anime ? "bg-red-500/80 text-white" :
+                                    item.Type == AMRecomen.Domain.Enums.MediaType.Manhwa ? "bg-blue-500/80 text-white" :
+                                    item.Type == AMRecomen.Domain.Enums.MediaType.Manhua ? "bg-green-500/80 text-white" :
+                                    item.Type == AMRecomen.Domain.Enums.MediaType.Pelicula ? "bg-yellow-500/80 text-black" : "bg-purple-500/80 text-white")">
+                                @item.Type
+                            </span>
+
+                            <!-- Hype Indicator -->
+                            <div class="absolute bottom-3 right-3 px-2 py-1 bg-black/70 backdrop-blur-md rounded-md border border-white/5 flex items-center space-x-1">
+                                <i class="fa-solid fa-fire text-orange-500 animate-pulse text-xs"></i>
+                                <span class="text-xs font-bold text-orange-400">@item.HypeScore%</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Info -->
+                        <div class="p-4 flex flex-col flex-grow justify-between">
+                            <h3 class="font-semibold text-white group-hover:text-brand-400 transition-colors line-clamp-2 min-h-[3rem] text-sm md:text-base">
+                                @item.Title
+                            </h3>
+                            <div class="mt-2 text-xs text-gray-500 flex items-center justify-between">
+                                <span>@(item.ReleaseDate?.Year.ToString() ?? "N/A")</span>
+                                <span class="flex items-center"><i class="fa-solid fa-star text-yellow-500 mr-1"></i> @item.Rating</span>
+                            </div>
+                        </div>
+                    </a>
+                }
+            </div>
+        }
+    </div>
+}
+else
+{
+    <!-- Vista Principal de Portada -->
+    <div class="space-y-16">
+        
+        <!-- Hero & Buscador Global -->
+        <div class="relative py-12 text-center max-w-4xl mx-auto space-y-6">
+            <h1 class="font-display font-extrabold text-4xl sm:text-6xl text-white tracking-tight leading-none animate-fade-in">
+                ¿Qué vas a <span class="bg-gradient-to-r from-brand-400 to-accentPink bg-clip-text text-transparent">ver o leer</span> hoy?
+            </h1>
+            <p class="text-gray-400 text-lg sm:text-xl max-w-2xl mx-auto">
+                Recomendaciones automáticas impulsadas por el tráfico, popularidad y tendencias en tiempo real de todo internet.
+            </p>
+
+            <div class="max-w-2xl mx-auto relative pt-4">
+                <form method="get" id="search-form">
+                    <div class="flex items-center bg-gray-900/60 border border-gray-800 focus-within:border-brand-500 focus-within:ring-2 focus-within:ring-brand-500/20 rounded-2xl p-1.5 transition-all relative z-30">
+                        <input type="text" name="Q" id="search-input" autocomplete="off" required placeholder="Escribe el nombre de un Anime, Manhwa, Manhua, Película o Serie..." 
+                               class="w-full bg-transparent border-none py-3 px-4 text-white placeholder-gray-500 focus:outline-none focus:ring-0 text-base sm:text-lg" />
+                        <button type="submit" class="px-6 py-3 bg-gradient-to-r from-brand-600 to-brand-700 hover:from-brand-500 hover:to-brand-600 text-white font-medium rounded-xl transition-all shadow-md shadow-brand-500/20 flex items-center space-x-2">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                            <span class="hidden sm:inline">Buscar</span>
+                        </button>
+                    </div>
+                </form>
+
+                <!-- Caja de sugerencias de Autocompletado -->
+                <div id="suggestions-box" class="absolute left-0 right-0 mt-2 bg-slate-950/95 backdrop-blur-md border border-gray-800 rounded-2xl overflow-hidden shadow-2xl z-50 hidden text-left divide-y divide-gray-800/50">
+                    <!-- Las sugerencias se inyectarán mediante JavaScript -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Secciones de Contenido (Top 3) -->
+        @{
+            var sections = new List<(string Name, string Icon, string ColorClass, string TypeParam, IEnumerable<MediaItem> Items)>
+            {
+                ("Anime Tendencia", "fa-tv", "text-red-500", "Anime", Model.TopAnime),
+                ("Manhwa Tendencia", "fa-book-open", "text-blue-500", "Manhwa", Model.TopManhwa),
+                ("Manhua Tendencia", "fa-scroll", "text-green-500", "Manhua", Model.TopManhua),
+                ("Películas Populares", "fa-film", "text-yellow-500", "Pelicula", Model.TopMovies),
+                ("Series de TV Populares", "fa-circle-play", "text-purple-500", "Serie", Model.TopSeries)
+            };
+        }
+
+        @foreach (var sec in sections)
+        {
+            <section class="space-y-6">
+                <!-- Encabezado de la Sección -->
+                <div class="flex items-center justify-between border-b border-gray-800 pb-3">
+                    <div class="flex items-center space-x-3">
+                        <span class="text-2xl @sec.ColorClass">
+                            <i class="fa-solid @sec.Icon"></i>
+                        </span>
+                        <h2 class="font-display font-extrabold text-2xl sm:text-3xl text-white">@sec.Name</h2>
+                    </div>
+                    <a asp-page="/Seccion" asp-route-tipo="@sec.TypeParam" class="text-sm font-semibold text-brand-400 hover:text-brand-300 transition-colors flex items-center space-x-1">
+                        <span>Ver catálogo</span>
+                        <i class="fa-solid fa-arrow-right text-xs"></i>
+                    </a>
+                </div>
+
+                @if (!sec.Items.Any())
+                {
+                    <!-- Fallback cuando la base de datos está vacía y el background worker no ha corrido -->
+                    <div class="glass rounded-2xl p-8 text-center text-gray-500 text-sm">
+                        <i class="fa-solid fa-circle-nodes mb-2 text-lg"></i>
+                        <p>Cargando recomendaciones automáticas de internet... Intenta buscar una obra arriba para iniciar la carga inmediata.</p>
+                    </div>
+                }
+                else
+                {
+                    <!-- Grilla de los Top 3 -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        @{
+                            int rank = 1;
+                        }
+                        @foreach (var item in sec.Items)
+                        {
+                            <a asp-page="/Detalle" asp-route-slug="@item.Slug" class="group relative flex flex-col glass glass-hover rounded-2xl overflow-hidden glow-card">
+                                
+                                <!-- Medalla de Ranking (Badge) -->
+                                <div class="absolute top-4 left-4 z-20 flex items-center justify-center w-10 h-10 rounded-xl font-display font-black text-lg shadow-lg border border-white/10 backdrop-blur-md
+                                      @(rank == 1 ? "bg-amber-500/90 text-white shadow-amber-500/20" :
+                                        rank == 2 ? "bg-slate-400/90 text-white shadow-slate-400/20" : "bg-amber-800/90 text-white shadow-amber-800/20")">
+                                    #@rank
+                                </div>
+
+                                <!-- Contenedor de Portada -->
+                                <div class="relative aspect-[16/10] md:aspect-[2/3] w-full overflow-hidden bg-gray-900">
+                                    <img src="@item.CoverImageUrl" alt="@item.Title" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
+                                    
+                                    <!-- Hype Indicator en Portada -->
+                                    <div class="absolute bottom-4 right-4 px-3 py-1.5 bg-black/80 backdrop-blur-md rounded-xl border border-white/10 flex items-center space-x-2">
+                                        <i class="fa-solid fa-fire text-orange-500 animate-pulse"></i>
+                                        <div class="flex flex-col">
+                                            <span class="text-[10px] uppercase text-gray-400 font-bold leading-none">Fama</span>
+                                            <span class="text-sm font-black text-orange-400 leading-none">@item.HypeScore%</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Contenido de la Tarjeta -->
+                                <div class="p-5 flex flex-col flex-grow justify-between space-y-4">
+                                    <div class="space-y-1">
+                                        <h3 class="font-display font-bold text-white text-lg group-hover:text-brand-400 transition-colors line-clamp-1">
+                                            @item.Title
+                                        </h3>
+                                        <p class="text-xs text-gray-400 line-clamp-2">
+                                            @item.Synopsis
+                                        </p>
+                                    </div>
+
+                                    <!-- Barra de Nivel de Fama / Hype -->
+                                    <div class="space-y-1.5">
+                                        <div class="flex justify-between text-xs font-semibold">
+                                            <span class="text-gray-400">Nivel de Tráfico</span>
+                                            <span class="text-brand-400">@item.HypeScore%</span>
+                                        </div>
+                                        <div class="w-full bg-gray-800 h-2 rounded-full overflow-hidden">
+                                            <div class="bg-gradient-to-r from-brand-600 via-brand-400 to-accentPink h-full rounded-full" style="width: @item.HypeScore%"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </a>
+                            rank++;
+                        }
+                    </div>
+                }
+            </section>
+        }
+    </div>
+}
+
+@section Scripts {
+    <script>
+        const searchInput = document.getElementById('search-input');
+        const suggestionsBox = document.getElementById('suggestions-box');
+
+        if (searchInput && suggestionsBox) {
+            let debounceTimer;
+
+            searchInput.addEventListener('input', () => {
+                clearTimeout(debounceTimer);
+                const query = searchInput.value.trim();
+
+                if (query.length < 2) {
+                    suggestionsBox.innerHTML = '';
+                    suggestionsBox.classList.add('hidden');
+                    return;
+                }
+
+                debounceTimer = setTimeout(async () => {
+                    try {
+                        const response = await fetch(`/api/suggestions?q=${encodeURIComponent(query)}`);
+                        if (!response.ok) return;
+
+                        const suggestions = await response.json();
+
+                        if (suggestions.length === 0) {
+                            suggestionsBox.innerHTML = '';
+                            suggestionsBox.classList.add('hidden');
+                            return;
+                        }
+
+                        suggestionsBox.innerHTML = suggestions.map(item => {
+                            let badgeColor = 'bg-red-500/20 text-red-400 border-red-500/30';
+                            if (item.type === 'Manhwa') badgeColor = 'bg-blue-500/20 text-blue-400 border-blue-500/30';
+                            else if (item.type === 'Manhua') badgeColor = 'bg-green-500/20 text-green-400 border-green-500/30';
+                            else if (item.type === 'Pelicula') badgeColor = 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
+                            else if (item.type === 'Serie') badgeColor = 'bg-purple-500/20 text-purple-400 border-purple-500/30';
+
+                            return `
+                                <a href="/Detalle/${item.slug}" class="flex items-center px-4 py-3 hover:bg-gray-900/60 transition-colors space-x-3">
+                                    <img src="${item.cover}" alt="${item.title}" class="w-10 h-14 object-cover rounded-md bg-gray-800 flex-shrink-0" />
+                                    <div class="flex-grow min-w-0">
+                                        <h4 class="text-white font-semibold text-sm truncate">${item.title}</h4>
+                                        <span class="inline-block mt-1 px-2 py-0.5 text-[10px] font-bold border rounded uppercase tracking-wider ${badgeColor}">${item.type}</span>
+                                    </div>
+                                    <i class="fa-solid fa-chevron-right text-gray-600 text-xs"></i>
+                                </a>
+                            `;
+                        }).join('');
+
+                        suggestionsBox.classList.remove('hidden');
+                    } catch (error) {
+                        console.error('Error fetching suggestions:', error);
+                    }
+                }, 300);
+            });
+
+            // Cerrar el cuadro al hacer clic fuera
+            document.addEventListener('click', (e) => {
+                if (!searchInput.contains(e.target) && !suggestionsBox.contains(e.target)) {
+                    suggestionsBox.classList.add('hidden');
+                }
+            });
+        }
+    </script>
+}

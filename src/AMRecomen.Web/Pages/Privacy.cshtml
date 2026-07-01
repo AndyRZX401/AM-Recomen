@@ -1,0 +1,38 @@
+@page
+@model PrivacyModel
+@{
+    ViewData["Title"] = "Política de Privacidad";
+    ViewData["MetaDescription"] = "Detalle de los términos de uso y política de privacidad de AM Recomen.";
+}
+
+<div class="max-w-3xl mx-auto space-y-6 animate-fade-in py-8">
+    <h1 class="font-display font-extrabold text-3xl sm:text-4xl text-white border-b border-gray-800 pb-3">
+        @ViewData["Title"]
+    </h1>
+    
+    <div class="glass rounded-2xl p-6 border border-white/10 space-y-4 text-gray-300 leading-relaxed">
+        <p>
+            En <strong>AM Recomen</strong>, valoramos tu privacidad. Esta política de privacidad detalla cómo manejamos la información cuando utilizas nuestra plataforma web.
+        </p>
+
+        <h3 class="text-white font-bold text-lg pt-2">1. Recopilación de Información</h3>
+        <p>
+            Nuestra plataforma está diseñada principalmente para proporcionar recomendaciones automáticas de contenido. No recopilamos información de identificación personal ni requerimos registro para realizar búsquedas o explorar el catálogo.
+        </p>
+
+        <h3 class="text-white font-bold text-lg pt-2">2. APIs de Terceros y Cookies</h3>
+        <p>
+            Consumimos APIs externas públicas (como Jikan, MangaDex y TMDb) para traerte información actualizada al instante. Es posible que estas plataformas externas recopilen datos de tráfico generales o utilicen cookies de análisis técnico cuando cargas sus recursos (como imágenes de portadas o metadatos).
+        </p>
+
+        <h3 class="text-white font-bold text-lg pt-2">3. Uso de la Información</h3>
+        <p>
+            Cualquier dato recopilado de manera anónima se utiliza estrictamente para optimizar la velocidad de carga de la web y refinar nuestro algoritmo interno de Hype/Popularidad de las series.
+        </p>
+
+        <h3 class="text-white font-bold text-lg pt-2">4. Cambios en esta Política</h3>
+        <p>
+            Nos reservamos el derecho de actualizar esta política periódicamente. Te recomendamos revisarla con frecuencia para estar al tanto de cualquier cambio.
+        </p>
+    </div>
+</div>

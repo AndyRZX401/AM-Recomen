@@ -1,0 +1,344 @@
+@page "{slug}"
+@model DetalleModel
+@{
+    ViewData["Title"] = Model.Media.Title;
+    ViewData["MetaDescription"] = $"Ficha técnica, sinopsis y nivel de fama para {Model.Media.Title}. Encuentra títulos alternativos e información detallada.";
+}
+
+<div class="space-y-12 animate-fade-in py-4 max-w-6xl mx-auto">
+    <!-- Breadcrumbs SEO -->
+    <nav class="flex text-xs sm:text-sm text-gray-500 space-x-2 bg-gray-900/30 px-4 py-2.5 rounded-xl border border-gray-800/40 w-fit">
+        <a asp-page="/Index" class="hover:text-brand-400 transition-colors flex items-center">
+            <i class="fa-solid fa-house mr-1.5"></i> Inicio
+        </a>
+        <span class="text-gray-700">/</span>
+        <a asp-page="/Seccion" asp-route-tipo="@Model.Media.Type" class="hover:text-brand-400 transition-colors capitalize">@Model.Media.Type</a>
+        <span class="text-gray-700">/</span>
+        <span class="text-gray-300 truncate max-w-[200px] sm:max-w-none">@Model.Media.Title</span>
+    </nav>
+
+    <!-- Ficha Principal de la Obra -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
+        
+        <!-- Columna Izquierda: Portada + Ficha Técnica Rápida -->
+        <div class="space-y-6">
+            <div class="glass p-2.5 rounded-3xl border border-white/10 shadow-2xl relative overflow-hidden group">
+                <div class="absolute inset-0 bg-gradient-to-tr from-brand-600/20 to-accentPink/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none z-10"></div>
+                <div class="aspect-[2/3] w-full rounded-2xl overflow-hidden bg-gray-950 shadow-inner relative">
+                    <img src="@Model.Media.CoverImageUrl" alt="@Model.Media.Title" class="w-full h-full object-cover group-hover:scale-102 transition-transform duration-700" />
+                </div>
+            </div>
+
+            <!-- Ficha Técnica -->
+            <div class="glass rounded-3xl p-6 border border-white/10 space-y-5 shadow-lg">
+                <h3 class="font-display font-extrabold text-white text-lg flex items-center border-b border-gray-800 pb-3">
+                    <i class="fa-solid fa-circle-info mr-2.5 text-brand-400"></i> Ficha Técnica
+                </h3>
+                <div class="space-y-3.5 text-sm">
+                    <div class="flex justify-between items-center py-1 border-b border-gray-800/50">
+                        <span class="text-gray-400">Formato</span>
+                        <span class="px-2.5 py-0.5 bg-brand-500/10 text-brand-400 rounded-md font-bold uppercase tracking-wider text-xs border border-brand-500/20">@Model.Media.Type</span>
+                    </div>
+                    <div class="flex justify-between items-center py-1 border-b border-gray-800/50">
+                        <span class="text-gray-400">Estado de Publicación</span>
+                        <span class="font-semibold text-gray-200 capitalize bg-gray-800/40 px-2 py-0.5 rounded-md border border-gray-700/30">@Model.Media.Status</span>
+                    </div>
+                    <div class="flex justify-between items-center py-1 border-b border-gray-800/50">
+                        <span class="text-gray-400">Lanzamiento</span>
+                        <span class="font-semibold text-gray-200">@(Model.Media.ReleaseDate?.ToString("dd/MM/yyyy") ?? "Desconocido")</span>
+                    </div>
+                    <div class="flex justify-between items-center py-1">
+                        <span class="text-gray-400">Puntaje Global</span>
+                        <span class="font-black text-yellow-500 flex items-center text-base">
+                            <i class="fa-solid fa-star mr-1 text-yellow-500 drop-shadow-[0_0_5px_rgba(234,179,8,0.3)]"></i> @Model.Media.Rating <span class="text-gray-500 text-xs font-normal ml-1">/ 10</span>
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Watchlist / Biblioteca Personal Card -->
+            <div class="glass rounded-3xl p-6 border border-white/10 space-y-4 shadow-lg relative overflow-hidden">
+                <h3 class="font-display font-extrabold text-white text-base flex items-center border-b border-gray-800 pb-3">
+                    <i class="fa-solid fa-bookmark mr-2.5 text-brand-400"></i> Mi Biblioteca
+                </h3>
+                
+                @if (User.Identity?.IsAuthenticated == true)
+                {
+                    <div class="space-y-3">
+                        @if (Model.LibraryEntry != null)
+                        {
+                            <div class="p-3 bg-gray-900/60 border border-gray-800 rounded-xl flex items-center justify-between">
+                                <div class="flex items-center space-x-2">
+                                    @if (Model.LibraryEntry.Status == AMRecomen.Domain.Enums.LibraryStatus.Visto)
+                                    {
+                                        <i class="fa-solid fa-circle-check text-emerald-500 text-base"></i>
+                                        <span class="text-sm font-semibold text-emerald-400">Visto / Completado</span>
+                                    }
+                                    else
+                                    {
+                                        <i class="fa-solid fa-clock text-brand-400 text-base animate-pulse"></i>
+                                        <span class="text-sm font-semibold text-gray-300">Pendiente: Por Ver</span>
+                                    }
+                                </div>
+                            </div>
+                            
+                            <div class="flex gap-2">
+                                @if (Model.LibraryEntry.Status == AMRecomen.Domain.Enums.LibraryStatus.PorVer)
+                                {
+                                    <form method="post" asp-page-handler="AddToLibrary" class="flex-grow">
+                                        <input type="hidden" name="mediaItemId" value="@Model.Media.Id" />
+                                        <input type="hidden" name="status" value="@AMRecomen.Domain.Enums.LibraryStatus.Visto" />
+                                        <input type="hidden" name="returnSlug" value="@Model.Media.Slug" />
+                                        <button type="submit" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1.5">
+                                            <i class="fa-solid fa-check"></i> Marcar como Visto
+                                        </button>
+                                    </form>
+                                }
+                                else
+                                {
+                                    <form method="post" asp-page-handler="AddToLibrary" class="flex-grow">
+                                        <input type="hidden" name="mediaItemId" value="@Model.Media.Id" />
+                                        <input type="hidden" name="status" value="@AMRecomen.Domain.Enums.LibraryStatus.PorVer" />
+                                        <input type="hidden" name="returnSlug" value="@Model.Media.Slug" />
+                                        <button type="submit" class="w-full py-2.5 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1.5">
+                                            <i class="fa-solid fa-clock"></i> Mover a Por Ver
+                                        </button>
+                                    </form>
+                                }
+
+                                <!-- Quitar de la biblioteca -->
+                                <form method="post" asp-page-handler="RemoveFromLibrary" class="flex-shrink-0">
+                                    <input type="hidden" name="mediaItemId" value="@Model.Media.Id" />
+                                    <input type="hidden" name="returnSlug" value="@Model.Media.Slug" />
+                                    <button type="submit" class="p-2.5 bg-red-655/10 hover:bg-red-600 text-red-400 hover:text-white rounded-xl text-xs font-semibold transition-all border border-red-500/20 hover:border-transparent" title="Quitar de mi biblioteca">
+                                        <i class="fa-solid fa-trash-can"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        }
+                        else
+                        {
+                            <p class="text-xs text-gray-400 leading-relaxed">Organiza tus series y películas favoritas en tu cuenta.</p>
+                            <div class="grid grid-cols-2 gap-2 pt-1">
+                                <!-- Agregar como Por Ver -->
+                                <form method="post" asp-page-handler="AddToLibrary">
+                                    <input type="hidden" name="mediaItemId" value="@Model.Media.Id" />
+                                    <input type="hidden" name="status" value="@AMRecomen.Domain.Enums.LibraryStatus.PorVer" />
+                                    <input type="hidden" name="returnSlug" value="@Model.Media.Slug" />
+                                    <button type="submit" class="w-full py-2.5 bg-brand-600/20 hover:bg-brand-600 text-brand-400 hover:text-white border border-brand-500/30 hover:border-transparent rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1">
+                                        <i class="fa-solid fa-clock"></i> Por Ver
+                                    </button>
+                                </form>
+
+                                <!-- Agregar como Visto -->
+                                <form method="post" asp-page-handler="AddToLibrary">
+                                    <input type="hidden" name="mediaItemId" value="@Model.Media.Id" />
+                                    <input type="hidden" name="status" value="@AMRecomen.Domain.Enums.LibraryStatus.Visto" />
+                                    <input type="hidden" name="returnSlug" value="@Model.Media.Slug" />
+                                    <button type="submit" class="w-full py-2.5 bg-emerald-600/20 hover:bg-emerald-600 text-emerald-400 hover:text-white border border-emerald-500/30 hover:border-transparent rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1">
+                                        <i class="fa-solid fa-check"></i> Visto
+                                    </button>
+                                </form>
+                            </div>
+                        }
+
+                        <!-- Sección de Valoración (1 al 10) -->
+                        <div class="border-t border-gray-800/80 pt-4 mt-4">
+                            <span class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Mi Calificación</span>
+                            
+                            <form method="post" asp-page-handler="UpdateRating" class="flex flex-col space-y-2">
+                                <input type="hidden" name="mediaItemId" value="@Model.Media.Id" />
+                                <input type="hidden" name="returnSlug" value="@Model.Media.Slug" />
+                                
+                                <div class="flex items-center justify-between gap-1 bg-gray-955/40 p-2 rounded-xl border border-gray-800/60">
+                                    @for (int i = 1; i <= 10; i++)
+                                    {
+                                        var isSelected = Model.LibraryEntry?.UserRating == i;
+                                        <button type="submit" name="rating" value="@i" 
+                                                class="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg text-xs font-bold transition-all
+                                                       @(isSelected ? "bg-amber-500 text-white shadow-md shadow-amber-500/20 scale-110" : 
+                                                         "bg-gray-900/60 text-gray-400 hover:text-white hover:bg-gray-800 border border-gray-850 hover:border-gray-700")">
+                                            @i
+                                        </button>
+                                    }
+                                </div>
+                                @if (Model.LibraryEntry?.UserRating.HasValue == true)
+                                {
+                                    <div class="flex items-center space-x-1.5 text-[10px] text-amber-500 justify-end font-semibold">
+                                        <i class="fa-solid fa-star"></i>
+                                        <span>Puntuado: @Model.LibraryEntry.UserRating / 10</span>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <p class="text-[10px] text-gray-500 text-right">Sin calificar. ¡Haz clic en un número para votar!</p>
+                                }
+                            </form>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="space-y-3">
+                        <p class="text-xs text-gray-400 leading-relaxed">
+                            Inicia sesión para guardar esta obra en tu biblioteca personal y llevar un registro.
+                        </p>
+                        <a asp-page="/Auth/Login" asp-route-ReturnUrl="/Detalle/@Model.Media.Slug" 
+                           class="w-full py-2.5 bg-gradient-to-r from-brand-600 to-brand-700 hover:from-brand-500 hover:to-brand-600 text-white rounded-xl text-xs font-bold transition-all text-center flex items-center justify-center gap-1.5 shadow-md shadow-brand-500/10">
+                            <i class="fa-solid fa-right-to-bracket"></i> Iniciar Sesión
+                        </a>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- Columna Derecha: Información Detallada -->
+        <div class="md:col-span-2 space-y-8">
+            <!-- Título e Identificación -->
+            <div class="space-y-3">
+                <h1 class="font-display font-extrabold text-3xl sm:text-5xl text-white tracking-tight leading-none">
+                    @Model.Media.Title
+                </h1>
+                
+                <!-- Nombres alternativos / Traducciones -->
+                <div class="space-y-1.5 pt-2">
+                    @if (!string.IsNullOrWhiteSpace(Model.Media.OriginalTitle) && Model.Media.OriginalTitle != Model.Media.Title)
+                    {
+                        <p class="text-gray-400 text-sm sm:text-base flex items-center">
+                            <span class="text-gray-600 font-medium text-xs uppercase tracking-wider mr-2 w-28 flex-shrink-0">Nombre Original:</span> 
+                            <span class="font-semibold italic text-gray-300">@Model.Media.OriginalTitle</span>
+                        </p>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(Model.Media.EnglishTitle) && Model.Media.EnglishTitle != Model.Media.Title && Model.Media.EnglishTitle != Model.Media.OriginalTitle)
+                    {
+                        <p class="text-gray-400 text-sm sm:text-base flex items-center">
+                            <span class="text-gray-600 font-medium text-xs uppercase tracking-wider mr-2 w-28 flex-shrink-0">En Inglés:</span> 
+                            <span class="font-semibold text-gray-300">@Model.Media.EnglishTitle</span>
+                        </p>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(Model.Media.AlternativeTitles))
+                    {
+                        <p class="text-gray-400 text-sm sm:text-base flex items-start">
+                            <span class="text-gray-600 font-medium text-xs uppercase tracking-wider mr-2 w-28 flex-shrink-0 pt-0.5">Otros Nombres:</span> 
+                            <span class="text-xs text-gray-400 leading-relaxed font-medium">@Model.Media.AlternativeTitles</span>
+                        </p>
+                    }
+                </div>
+            </div>
+
+            <!-- Etiquetas / Géneros -->
+            @if (Model.Media.Tags.Any())
+            {
+                <div class="space-y-2">
+                    <span class="text-[10px] uppercase text-gray-600 font-bold tracking-widest block">Géneros y Categorías</span>
+                    <div class="flex flex-wrap gap-2">
+                        @foreach (var tag in Model.Media.Tags)
+                        {
+                            <span class="px-3.5 py-1.5 bg-gray-900/60 border border-gray-800/80 hover:border-brand-500/30 hover:bg-gray-900 transition-colors rounded-xl text-xs font-semibold text-gray-300">
+                                @tag.Name
+                            </span>
+                        }
+                    </div>
+                </div>
+            }
+
+            <!-- Medidor de Hype y Popularidad -->
+            <div class="glass rounded-3xl p-6 border border-white/10 relative overflow-hidden shadow-xl">
+                <div class="absolute -top-12 -right-12 w-32 h-32 bg-gradient-to-br from-brand-600/10 to-accentPink/10 rounded-full blur-2xl pointer-events-none"></div>
+                
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+                    <div class="space-y-2">
+                        <div class="flex items-center space-x-2 text-orange-500 font-bold">
+                            <i class="fa-solid fa-fire-flame-curved text-xl animate-pulse"></i>
+                            <span class="uppercase tracking-widest text-[10px] font-black">Métrica de Popularidad</span>
+                        </div>
+                        
+                        <!-- Estado de Hype -->
+                        <h3 class="text-2xl font-black text-white font-display">
+                            @if (Model.Media.HypeScore >= 85)
+                            {
+                                <span class="bg-gradient-to-r from-red-500 via-orange-400 to-yellow-400 bg-clip-text text-transparent">¡Fama Explosiva! 🔥</span>
+                            }
+                            else if (Model.Media.HypeScore >= 70)
+                            {
+                                <span class="text-orange-400">Muy Popular ⚡</span>
+                            }
+                            else if (Model.Media.HypeScore >= 50)
+                            {
+                                <span class="text-brand-400">Tendencia Estable 📈</span>
+                            }
+                            else
+                            {
+                                <span class="text-gray-400">Interés Moderado 🍃</span>
+                            }
+                        </h3>
+                        <p class="text-xs text-gray-400">Evaluación calculada a partir del tráfico orgánico en motores de búsqueda de internet.</p>
+                    </div>
+
+                    <!-- Métrica con número -->
+                    <div class="flex items-center space-x-4 bg-gray-900/40 p-4 rounded-2xl border border-gray-800/60 self-start sm:self-center">
+                        <div class="text-right">
+                            <span class="block text-3xl font-black text-white font-display leading-none">@Model.Media.HypeScore%</span>
+                            <span class="text-[9px] text-gray-500 uppercase tracking-widest font-black block mt-1">Hype Score</span>
+                        </div>
+                        <div class="w-12 h-12 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center text-brand-400 text-xl shadow-inner">
+                            <i class="fa-solid fa-chart-line"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Barra de progreso -->
+                <div class="mt-5 w-full bg-gray-950 h-3 rounded-full overflow-hidden p-0.5 border border-gray-800">
+                    <div class="bg-gradient-to-r from-brand-600 via-brand-400 to-accentPink h-full rounded-full" style="width: @Model.Media.HypeScore%"></div>
+                </div>
+            </div>
+
+            <!-- Sinopsis -->
+            <div class="space-y-3.5">
+                <h3 class="font-display font-black text-xl text-white flex items-center">
+                    <i class="fa-solid fa-align-left mr-2.5 text-brand-400"></i> Sinopsis
+                </h3>
+                <div class="glass rounded-3xl p-6 sm:p-8 border border-white/5 bg-gray-900/25 relative">
+                    <div class="absolute top-4 right-6 text-gray-800 text-6xl font-serif pointer-events-none select-none">“</div>
+                    <p class="text-gray-300 leading-relaxed text-base sm:text-lg whitespace-pre-line relative z-10">
+                        @(string.IsNullOrWhiteSpace(Model.Media.Synopsis) ? "No hay una sinopsis en español disponible para esta obra en este momento." : Model.Media.Synopsis)
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recomendados -->
+    @if (Model.Recomendaciones.Any())
+    {
+        <section class="space-y-6 pt-8 border-t border-gray-800/80">
+            <div class="flex items-center space-x-2.5">
+                <span class="text-brand-400 text-xl"><i class="fa-solid fa-wand-magic-sparkles"></i></span>
+                <h3 class="font-display font-extrabold text-2xl text-white">Recomendaciones Similares</h3>
+            </div>
+            
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+                @foreach (var rec in Model.Recomendaciones)
+                {
+                    <a asp-page="/Detalle" asp-route-slug="@rec.Slug" class="group flex flex-col glass glass-hover rounded-2xl overflow-hidden glow-card">
+                        <!-- Portada -->
+                        <div class="relative aspect-[2/3] w-full overflow-hidden bg-gray-900">
+                            <img src="@rec.CoverImageUrl" alt="@rec.Title" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
+                            <div class="absolute bottom-2.5 right-2.5 px-2 py-1 bg-black/80 rounded-md border border-white/5 flex items-center space-x-1">
+                                <i class="fa-solid fa-fire text-orange-500 text-[10px]"></i>
+                                <span class="text-[10px] font-bold text-orange-400">@rec.HypeScore%</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Info -->
+                        <div class="p-3 flex flex-col flex-grow justify-between">
+                            <h4 class="font-bold text-white text-xs sm:text-sm group-hover:text-brand-400 transition-colors line-clamp-2 leading-tight">
+                                @rec.Title
+                            </h4>
+                        </div>
+                    </a>
+                }
+            </div>
+        </section>
+    }
+</div>

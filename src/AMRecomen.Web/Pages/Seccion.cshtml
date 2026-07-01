@@ -1,0 +1,128 @@
+@page
+@model SeccionModel
+@{
+    ViewData["Title"] = Model.Tipo;
+    ViewData["MetaDescription"] = $"Explora el catálogo completo de {Model.Tipo} ordenado por popularidad y tráfico web. Encuentra sinopsis y medidores de fama.";
+}
+
+<div class="space-y-8 animate-fade-in">
+    <!-- Encabezado de Sección -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-800 pb-5">
+        <div class="flex items-center space-x-3">
+            <span class="text-3xl @(Model.MediaTypeEnum == AMRecomen.Domain.Enums.MediaType.Anime ? "text-red-500" :
+                                 Model.MediaTypeEnum == AMRecomen.Domain.Enums.MediaType.Manhwa ? "text-blue-500" :
+                                 Model.MediaTypeEnum == AMRecomen.Domain.Enums.MediaType.Manhua ? "text-green-500" :
+                                 Model.MediaTypeEnum == AMRecomen.Domain.Enums.MediaType.Pelicula ? "text-yellow-500" : "text-purple-500")">
+                <i class="fa-solid @(Model.MediaTypeEnum == AMRecomen.Domain.Enums.MediaType.Anime ? "fa-tv" :
+                                     Model.MediaTypeEnum == AMRecomen.Domain.Enums.MediaType.Manhwa ? "fa-book-open" :
+                                     Model.MediaTypeEnum == AMRecomen.Domain.Enums.MediaType.Manhua ? "fa-scroll" :
+                                     Model.MediaTypeEnum == AMRecomen.Domain.Enums.MediaType.Pelicula ? "fa-film" : "fa-circle-play")"></i>
+            </span>
+            <div>
+                <h1 class="font-display font-extrabold text-3xl sm:text-4xl text-white">
+                    Catálogo de @Model.Tipo
+                </h1>
+                <p class="text-gray-400 mt-1">Explora las obras más populares ordenadas por tráfico global</p>
+            </div>
+        </div>
+        
+        <!-- Total de elementos indicados -->
+        <div class="text-sm text-gray-400 font-semibold bg-gray-900/60 border border-gray-800 px-4 py-2 rounded-xl">
+            Total indexado: <span class="text-brand-400">@Model.TotalItems</span>
+        </div>
+    </div>
+
+    @if (!Model.Items.Any())
+    {
+        <div class="glass rounded-2xl p-12 text-center max-w-xl mx-auto space-y-4">
+            <div class="inline-flex p-4 bg-brand-500/10 rounded-full text-brand-400">
+                <i class="fa-solid fa-cloud-arrow-down text-3xl"></i>
+            </div>
+            <h3 class="text-xl font-bold text-white">Aún no hay registros</h3>
+            <p class="text-gray-400">
+                El catálogo de @Model.Tipo todavía no ha sido sincronizado automáticamente o está vacío en tu servidor local.
+            </p>
+            <div class="pt-2">
+                <p class="text-xs text-gray-500 mb-4">Puedes activar la carga instantánea buscando una serie desde el buscador del inicio.</p>
+                <a asp-page="/Index" class="inline-flex items-center justify-center px-6 py-3 bg-brand-600 hover:bg-brand-500 text-white font-medium rounded-xl transition-all shadow-lg shadow-brand-500/20">
+                    Ir al buscador
+                </a>
+            </div>
+        </div>
+    }
+    else
+    {
+        <!-- Grilla de Elementos -->
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            @foreach (var item in Model.Items)
+            {
+                <a asp-page="/Detalle" asp-route-slug="@item.Slug" class="group flex flex-col glass glass-hover rounded-2xl overflow-hidden glow-card">
+                    <!-- Portada -->
+                    <div class="relative aspect-[2/3] w-full overflow-hidden bg-gray-900">
+                        <img src="@item.CoverImageUrl" alt="@item.Title" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
+                        
+                        <!-- Métrica de Fama (Hype) -->
+                        <div class="absolute bottom-3 right-3 px-2 py-1 bg-black/80 backdrop-blur-md rounded-md border border-white/5 flex items-center space-x-1">
+                            <i class="fa-solid fa-fire text-orange-500 text-xs animate-pulse"></i>
+                            <span class="text-xs font-bold text-orange-400">@item.HypeScore%</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Info -->
+                    <div class="p-4 flex flex-col flex-grow justify-between">
+                        <div>
+                            <h3 class="font-semibold text-white group-hover:text-brand-400 transition-colors line-clamp-2 min-h-[3rem] text-sm md:text-base">
+                                @item.Title
+                            </h3>
+                        </div>
+                        <div class="mt-4 text-xs text-gray-500 flex items-center justify-between">
+                            <span>@(item.ReleaseDate?.Year.ToString() ?? "N/A")</span>
+                            <span class="flex items-center"><i class="fa-solid fa-star text-yellow-500 mr-1"></i> @item.Rating</span>
+                        </div>
+                    </div>
+                </a>
+            }
+        </div>
+
+        <!-- Paginación -->
+        @if (Model.TotalPages > 1)
+        {
+            <div class="flex justify-center items-center space-x-2 pt-8">
+                <!-- Anterior -->
+                @if (Model.PageNumber > 1)
+                {
+                    <a asp-page="/Seccion" asp-route-tipo="@Model.Tipo" asp-route-p="@(Model.PageNumber - 1)" 
+                       class="px-4 py-2.5 bg-gray-900 border border-gray-800 rounded-xl text-sm font-semibold text-gray-400 hover:text-white hover:border-gray-700 transition-all">
+                        <i class="fa-solid fa-chevron-left mr-1"></i> Anterior
+                    </a>
+                }
+                else
+                {
+                    <span class="px-4 py-2.5 bg-gray-950 border border-gray-900 rounded-xl text-sm font-semibold text-gray-600 cursor-not-allowed">
+                        <i class="fa-solid fa-chevron-left mr-1"></i> Anterior
+                    </span>
+                }
+
+                <!-- Info de Página -->
+                <span class="text-sm text-gray-400 px-3">
+                    Página <span class="text-white font-bold">@Model.PageNumber</span> de <span class="text-white font-bold">@Model.TotalPages</span>
+                </span>
+
+                <!-- Siguiente -->
+                @if (Model.PageNumber < Model.TotalPages)
+                {
+                    <a asp-page="/Seccion" asp-route-tipo="@Model.Tipo" asp-route-p="@(Model.PageNumber + 1)" 
+                       class="px-4 py-2.5 bg-gray-900 border border-gray-800 rounded-xl text-sm font-semibold text-gray-400 hover:text-white hover:border-gray-700 transition-all">
+                        Siguiente <i class="fa-solid fa-chevron-right ml-1"></i>
+                    </a>
+                }
+                else
+                {
+                    <span class="px-4 py-2.5 bg-gray-950 border border-gray-900 rounded-xl text-sm font-semibold text-gray-600 cursor-not-allowed">
+                        Siguiente <i class="fa-solid fa-chevron-right ml-1"></i>
+                    </span>
+                }
+            </div>
+        }
+    }
+</div>

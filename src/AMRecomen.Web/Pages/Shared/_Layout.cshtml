@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - AM Recomen | Descubre Qué Ver o Leer Hoy</title>
+    
+    <!-- Meta tags básicas de SEO -->
+    <meta name="description" content="@ViewData["MetaDescription"]" />
+    <meta name="robots" content="index, follow" />
+    
+    <!-- Tailwind CSS Play CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- FontAwesome para iconos de alta calidad -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    
+    <!-- Estilos personalizados -->
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    
+    <!-- Configuración del tema de Tailwind -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f5f3ff',
+                            100: '#ede9fe',
+                            400: '#a78bfa',
+                            500: '#8b5cf6',
+                            600: '#7c3aed',
+                            700: '#6d28d9',
+                            900: '#4c1d95',
+                        },
+                        darkBg: '#060a13',
+                        darkCard: '#0f172a',
+                        accentPink: '#d946ef',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        display: ['Outfit', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-darkBg text-gray-100 font-sans selection:bg-brand-500 selection:text-white min-h-screen flex flex-col relative overflow-x-hidden">
+
+    <!-- Fondo decorativo con luces difusas (Glows) -->
+    <div class="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-brand-900/10 blur-[120px] pointer-events-none animate-pulse-slow"></div>
+    <div class="absolute bottom-[20%] right-[-10%] w-[40%] h-[40%] rounded-full bg-accentPink/5 blur-[120px] pointer-events-none animate-pulse-slow"></div>
+
+    <header class="sticky top-0 z-50 glass border-b border-gray-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <!-- Logotipo -->
+                <div class="flex-shrink-0 flex items-center">
+                    <a asp-page="/Index" class="flex items-center space-x-2">
+                        <div class="w-10 h-10 rounded-xl overflow-hidden shadow-lg shadow-brand-500/10 border border-brand-500/30 flex items-center justify-center bg-gray-950">
+                            <img src="/images/logo.png" alt="Logo" class="w-full h-full object-cover" />
+                        </div>
+                        <span class="font-display font-extrabold text-xl tracking-tight bg-gradient-to-r from-white via-gray-200 to-brand-400 bg-clip-text text-transparent">
+                            AM<span class="text-brand-500 text-glow-purple">Recomen</span>
+                        </span>
+                    </a>
+                </div>
+
+                <!-- Menú de navegación (Desktop) -->
+                <nav class="hidden md:flex space-x-1 sm:space-x-4">
+                    <a asp-page="/Index" class="px-3 py-2 rounded-lg text-sm font-medium hover:text-white transition-colors @(ViewContext.RouteData.Values["page"]?.ToString() == "/Index" ? "text-brand-400 bg-gray-900/40" : "text-gray-400")">
+                        <i class="fa-solid fa-house mr-1"></i> Inicio
+                    </a>
+                    <a asp-page="/Seccion" asp-route-tipo="Anime" class="px-3 py-2 rounded-lg text-sm font-medium hover:text-white transition-colors @(Context.Request.Query["tipo"] == "Anime" ? "text-brand-400 bg-gray-900/40" : "text-gray-400")">
+                        <i class="fa-solid fa-tv mr-1 text-red-500"></i> Anime
+                    </a>
+                    <a asp-page="/Seccion" asp-route-tipo="Manhwa" class="px-3 py-2 rounded-lg text-sm font-medium hover:text-white transition-colors @(Context.Request.Query["tipo"] == "Manhwa" ? "text-brand-400 bg-gray-900/40" : "text-gray-400")">
+                        <i class="fa-solid fa-book-open mr-1 text-blue-500"></i> Manhwa
+                    </a>
+                    <a asp-page="/Seccion" asp-route-tipo="Manhua" class="px-3 py-2 rounded-lg text-sm font-medium hover:text-white transition-colors @(Context.Request.Query["tipo"] == "Manhua" ? "text-brand-400 bg-gray-900/40" : "text-gray-400")">
+                        <i class="fa-solid fa-scroll mr-1 text-green-500"></i> Manhua
+                    </a>
+                    <a asp-page="/Seccion" asp-route-tipo="Pelicula" class="px-3 py-2 rounded-lg text-sm font-medium hover:text-white transition-colors @(Context.Request.Query["tipo"] == "Pelicula" ? "text-brand-400 bg-gray-900/40" : "text-gray-400")">
+                        <i class="fa-solid fa-film mr-1 text-yellow-500"></i> Películas
+                    </a>
+                    <a asp-page="/Seccion" asp-route-tipo="Serie" class="px-3 py-2 rounded-lg text-sm font-medium hover:text-white transition-colors @(Context.Request.Query["tipo"] == "Serie" ? "text-brand-400 bg-gray-900/40" : "text-gray-400")">
+                        <i class="fa-solid fa-circle-play mr-1 text-purple-500"></i> Series
+                    </a>
+                </nav>
+
+                <!-- Botones de Cuenta / Biblioteca (Desktop) -->
+                <div class="hidden md:flex items-center space-x-3">
+                    @if (User.Identity?.IsAuthenticated == true)
+                    {
+                        <a asp-page="/Biblioteca" class="px-3.5 py-2 rounded-xl text-sm font-semibold text-gray-300 hover:text-white hover:bg-gray-800/40 border border-gray-800 transition-all flex items-center space-x-2">
+                            <i class="fa-solid fa-bookmark text-brand-400 text-xs"></i>
+                            <span>Mi Biblioteca</span>
+                        </a>
+                        
+                        <div class="relative group">
+                            <button class="px-3.5 py-2 rounded-xl text-sm font-semibold text-white bg-gray-900 border border-gray-800 flex items-center space-x-1.5 focus:outline-none">
+                                <i class="fa-solid fa-user text-gray-400 text-xs"></i>
+                                <span>@User.Identity.Name</span>
+                                <i class="fa-solid fa-chevron-down text-gray-500 text-[10px]"></i>
+                            </button>
+                            
+                            <!-- Menu desplegable al hover/focus -->
+                            <div class="absolute right-0 mt-2 w-48 bg-slate-950 border border-gray-800 rounded-2xl overflow-hidden shadow-2xl z-50 hidden group-hover:block hover:block">
+                                <a asp-page="/Biblioteca" class="flex items-center px-4 py-3 text-sm text-gray-300 hover:text-white hover:bg-gray-900/60 transition-colors">
+                                    <i class="fa-solid fa-bookmark w-5 text-brand-400"></i> Mi Biblioteca
+                                </a>
+                                <a asp-page="/Auth/Logout" class="flex items-center px-4 py-3 text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 border-t border-gray-900/50 transition-colors">
+                                    <i class="fa-solid fa-right-from-bracket w-5"></i> Cerrar Sesión
+                                </a>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <a asp-page="/Auth/Login" class="px-3.5 py-2 text-sm font-semibold text-gray-400 hover:text-white transition-colors">
+                            Iniciar Sesión
+                        </a>
+                        <a asp-page="/Auth/Register" class="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-sm font-semibold transition-all shadow-md shadow-brand-500/10">
+                            Crear Cuenta
+                        </a>
+                    }
+                </div>
+
+                <!-- Menú móvil (Hamburguesa) -->
+                <div class="flex md:hidden">
+                    <button id="mobile-menu-btn" type="button" class="text-gray-400 hover:text-white focus:outline-none" aria-label="Menu">
+                        <i class="fa-solid fa-bars text-xl"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Menú Móvil Desplegable -->
+        <div id="mobile-menu" class="hidden md:hidden border-t border-gray-800 bg-darkBg/95 px-2 pt-2 pb-4 space-y-1">
+            <a asp-page="/Index" class="block px-3 py-2 rounded-lg text-base font-medium text-gray-300 hover:text-white hover:bg-gray-800">
+                <i class="fa-solid fa-house w-6 text-gray-500"></i> Inicio
+            </a>
+            <a asp-page="/Seccion" asp-route-tipo="Anime" class="block px-3 py-2 rounded-lg text-base font-medium text-gray-300 hover:text-white hover:bg-gray-800">
+                <i class="fa-solid fa-tv w-6 text-red-500"></i> Anime
+            </a>
+            <a asp-page="/Seccion" asp-route-tipo="Manhwa" class="block px-3 py-2 rounded-lg text-base font-medium text-gray-300 hover:text-white hover:bg-gray-800">
+                <i class="fa-solid fa-book-open w-6 text-blue-500"></i> Manhwa
+            </a>
+            <a asp-page="/Seccion" asp-route-tipo="Manhua" class="block px-3 py-2 rounded-lg text-base font-medium text-gray-300 hover:text-white hover:bg-gray-800">
+                <i class="fa-solid fa-scroll w-6 text-green-500"></i> Manhua
+            </a>
+            <a asp-page="/Seccion" asp-route-tipo="Pelicula" class="block px-3 py-2 rounded-lg text-base font-medium text-gray-300 hover:text-white hover:bg-gray-800">
+                <i class="fa-solid fa-film w-6 text-yellow-500"></i> Películas
+            </a>
+            <a asp-page="/Seccion" asp-route-tipo="Serie" class="block px-3 py-2 rounded-lg text-base font-medium text-gray-300 hover:text-white hover:bg-gray-800">
+                <i class="fa-solid fa-circle-play w-6 text-purple-500"></i> Series
+            </a>
+
+            @if (User.Identity?.IsAuthenticated == true)
+            {
+                <div class="border-t border-gray-800/80 my-2 pt-2">
+                    <span class="block px-3 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Usuario: @User.Identity.Name</span>
+                    <a asp-page="/Biblioteca" class="block px-3 py-2 rounded-lg text-base font-medium text-gray-300 hover:text-white hover:bg-gray-800">
+                        <i class="fa-solid fa-bookmark w-6 text-brand-400"></i> Mi Biblioteca
+                    </a>
+                    <a asp-page="/Auth/Logout" class="block px-3 py-2 rounded-lg text-base font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10">
+                        <i class="fa-solid fa-right-from-bracket w-6"></i> Cerrar Sesión
+                    </a>
+                </div>
+            }
+            else
+            {
+                <div class="border-t border-gray-800/80 my-2 pt-2 grid grid-cols-2 gap-2 px-2">
+                    <a asp-page="/Auth/Login" class="flex items-center justify-center py-2 px-4 border border-gray-800 rounded-lg text-sm font-semibold text-gray-300 hover:text-white hover:bg-gray-800 transition-colors">
+                        Iniciar Sesión
+                    </a>
+                    <a asp-page="/Auth/Register" class="flex items-center justify-center py-2 px-4 bg-brand-600 hover:bg-brand-500 rounded-lg text-sm font-semibold text-white transition-colors">
+                        Registrarse
+                    </a>
+                </div>
+            }
+        </div>
+    </header>
+
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 relative z-10">
+        @RenderBody()
+    </main>
+
+    <footer class="glass border-t border-gray-800 mt-auto py-8">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex flex-col md:flex-row items-center justify-between space-y-4 md:space-y-0">
+                <div class="flex items-center space-x-2">
+                    <span class="font-display font-bold text-lg bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
+                        AM<span class="text-brand-500">Recomen</span>
+                    </span>
+                    <span class="text-sm text-gray-500">| © 2026 Todos los derechos reservados.</span>
+                </div>
+                <div class="flex space-x-6 text-gray-500 text-sm">
+                    <a asp-page="/Privacy" class="hover:text-gray-300 transition-colors">Privacidad</a>
+                    <span class="text-gray-800">•</span>
+                    <span class="text-gray-400">Desarrollado con <i class="fa-solid fa-heart text-red-500 animate-pulse"></i> para recomendación automática</span>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Script de toggle para el menú móvil
+        const btn = document.getElementById('mobile-menu-btn');
+        const menu = document.getElementById('mobile-menu');
+        if (btn && menu) {
+            btn.addEventListener('click', () => {
+                menu.classList.toggle('hidden');
+            });
+        }
+
+        // Manejador global de captura para imágenes rotas o caídas (para que siempre carguen bien)
+        document.addEventListener('error', function (event) {
+            if (event.target.tagName && event.target.tagName.toLowerCase() === 'img') {
+                // Evitar bucles infinitos si falla el placeholder mismo
+                if (!event.target.src.endsWith('/images/placeholder.png')) {
+                    event.target.src = '/images/placeholder.png';
+                }
+            }
+        }, true); // Usamos fase de captura porque los eventos 'error' no burbujean
+    </script>
+
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

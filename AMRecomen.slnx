@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/AMRecomen.Application/AMRecomen.Application.csproj" />
+    <Project Path="src/AMRecomen.Domain/AMRecomen.Domain.csproj" />
+    <Project Path="src/AMRecomen.Infrastructure/AMRecomen.Infrastructure.csproj" />
+    <Project Path="src/AMRecomen.Web/AMRecomen.Web.csproj" />
+  </Folder>
+</Solution>

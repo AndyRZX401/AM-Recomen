@@ -1,0 +1,308 @@
+@page
+@model BibliotecaModel
+@{
+    ViewData["Title"] = "Mi Biblioteca";
+}
+
+<div class="space-y-8 animate-fade-in">
+    <!-- Encabezado -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-800 pb-5">
+        <div>
+            <h1 class="font-display font-extrabold text-3xl sm:text-4xl text-white">
+                Mi <span class="bg-gradient-to-r from-brand-400 to-accentPink bg-clip-text text-transparent">Biblioteca</span>
+            </h1>
+            <p class="text-gray-400 mt-1">Administra tus obras guardadas, vistas, por ver y valoradas.</p>
+        </div>
+        <div class="flex items-center space-x-2 text-sm text-gray-400">
+            <span class="px-4 py-2 bg-gray-900/60 border border-gray-800 rounded-xl font-semibold">
+                Nombre de usuario: <span class="text-brand-400">@User.Identity?.Name</span>
+            </span>
+        </div>
+    </div>
+
+    <!-- Pestañas de estado -->
+    <div class="flex border-b border-gray-800/80 gap-2 overflow-x-auto scrollbar-none">
+        <button onclick="switchTab('por-ver')" id="tab-por-ver" 
+                class="px-5 py-3 font-semibold text-sm transition-all border-b-2 border-brand-500 text-brand-400 -mb-[2px] focus:outline-none whitespace-nowrap">
+            <i class="fa-solid fa-clock mr-1.5 text-xs"></i> Por ver
+        </button>
+        <button onclick="switchTab('visto')" id="tab-visto" 
+                class="px-5 py-3 font-semibold text-sm transition-all border-b-2 border-transparent text-gray-400 hover:text-white -mb-[2px] focus:outline-none whitespace-nowrap">
+            <i class="fa-solid fa-circle-check mr-1.5 text-xs text-emerald-500"></i> Completados
+        </button>
+        <button onclick="switchTab('valorados')" id="tab-valorados" 
+                class="px-5 py-3 font-semibold text-sm transition-all border-b-2 border-transparent text-gray-400 hover:text-white -mb-[2px] focus:outline-none whitespace-nowrap">
+            <i class="fa-solid fa-star mr-1.5 text-xs text-amber-500"></i> Mis Valoraciones
+        </button>
+    </div>
+
+    <!-- Sección de Lista -->
+    <div class="space-y-6">
+        <!-- Contenedor Por Ver -->
+        <div id="panel-por-ver" class="space-y-6">
+            @{
+                var porVerItems = Model.LibraryItems.Where(l => l.Status == AMRecomen.Domain.Enums.LibraryStatus.PorVer).ToList();
+            }
+            @if (!porVerItems.Any())
+            {
+                <div class="glass rounded-3xl p-12 text-center max-w-xl mx-auto space-y-4">
+                    <div class="inline-flex p-4 bg-brand-500/10 rounded-full text-brand-400">
+                        <i class="fa-solid fa-bookmark text-3xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-white">Lista "Por ver" vacía</h3>
+                    <p class="text-gray-400 text-sm">
+                        Aquí verás las series, películas o animes que guardes para ver más tarde. Explora las tendencias del inicio y agrégalas.
+                    </p>
+                    <a asp-page="/Index" class="inline-flex items-center justify-center px-6 py-3 bg-brand-600 hover:bg-brand-500 text-white font-medium rounded-xl transition-all shadow-lg shadow-brand-500/20 text-sm">
+                        Buscar series y películas
+                    </a>
+                </div>
+            }
+            else
+            {
+                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                    @foreach (var item in porVerItems)
+                    {
+                        <div class="group flex flex-col glass rounded-2xl overflow-hidden glow-card relative">
+                            <!-- Portada -->
+                            <a asp-page="/Detalle" asp-route-slug="@item.MediaItem.Slug" class="relative aspect-[2/3] w-full overflow-hidden bg-gray-900 block">
+                                <img src="@item.MediaItem.CoverImageUrl" alt="@item.MediaItem.Title" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
+                                
+                                <!-- Badge de Tipo -->
+                                <span class="absolute top-3 left-3 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider backdrop-blur-md border border-white/10
+                                      @(item.MediaItem.Type == AMRecomen.Domain.Enums.MediaType.Anime ? "bg-red-500/80 text-white" :
+                                        item.MediaItem.Type == AMRecomen.Domain.Enums.MediaType.Manhwa ? "bg-blue-500/80 text-white" :
+                                        item.MediaItem.Type == AMRecomen.Domain.Enums.MediaType.Manhua ? "bg-green-500/80 text-white" :
+                                        item.MediaItem.Type == AMRecomen.Domain.Enums.MediaType.Pelicula ? "bg-yellow-500/80 text-black" : "bg-purple-500/80 text-white")">
+                                    @item.MediaItem.Type
+                                </span>
+                            </a>
+
+                            <!-- Acciones rápidas (formularios) -->
+                            <div class="p-4 flex flex-col flex-grow justify-between space-y-3">
+                                <div>
+                                    <a asp-page="/Detalle" asp-route-slug="@item.MediaItem.Slug">
+                                        <h3 class="font-semibold text-white hover:text-brand-400 transition-colors line-clamp-1 text-sm md:text-base">
+                                            @item.MediaItem.Title
+                                        </h3>
+                                    </a>
+                                    <p class="text-xs text-gray-500 mt-1">Agregado: @item.AddedAt.ToString("dd/MM/yyyy")</p>
+                                </div>
+
+                                <div class="flex gap-2 pt-2">
+                                    <!-- Marcar como visto -->
+                                    <form method="post" asp-page-handler="UpdateStatus" class="flex-grow">
+                                        <input type="hidden" name="mediaItemId" value="@item.MediaItemId" />
+                                        <input type="hidden" name="status" value="@AMRecomen.Domain.Enums.LibraryStatus.Visto" />
+                                        <button type="submit" class="w-full py-2 bg-emerald-600/20 hover:bg-emerald-600 text-emerald-400 hover:text-white rounded-lg text-xs font-semibold transition-all border border-emerald-500/20 hover:border-transparent flex items-center justify-center gap-1.5" title="Marcar como visto">
+                                            <i class="fa-solid fa-check"></i> Visto
+                                        </button>
+                                    </form>
+
+                                    <!-- Quitar -->
+                                    <form method="post" asp-page-handler="Remove" class="flex-shrink-0">
+                                        <input type="hidden" name="mediaItemId" value="@item.MediaItemId" />
+                                        <button type="submit" class="p-2 bg-red-600/10 hover:bg-red-600 text-red-400 hover:text-white rounded-lg text-xs font-semibold transition-all border border-red-500/20 hover:border-transparent" title="Quitar de la biblioteca">
+                                            <i class="fa-solid fa-trash-can"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+
+        <!-- Contenedor Visto -->
+        <div id="panel-visto" class="space-y-6 hidden">
+            @{
+                var vistoItems = Model.LibraryItems.Where(l => l.Status == AMRecomen.Domain.Enums.LibraryStatus.Visto).ToList();
+            }
+            @if (!vistoItems.Any())
+            {
+                <div class="glass rounded-3xl p-12 text-center max-w-xl mx-auto space-y-4">
+                    <div class="inline-flex p-4 bg-emerald-500/10 rounded-full text-emerald-400">
+                        <i class="fa-solid fa-circle-check text-3xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-white">Lista "Vistos" vacía</h3>
+                    <p class="text-gray-400 text-sm">
+                        Aquí verás las obras que marques como completadas o vistas. Lleva un registro de todo lo que has visto y leído.
+                    </p>
+                </div>
+            }
+            else
+            {
+                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                    @foreach (var item in vistoItems)
+                    {
+                        <div class="group flex flex-col glass rounded-2xl overflow-hidden glow-card relative">
+                            <!-- Portada -->
+                            <a asp-page="/Detalle" asp-route-slug="@item.MediaItem.Slug" class="relative aspect-[2/3] w-full overflow-hidden bg-gray-900 block">
+                                <img src="@item.MediaItem.CoverImageUrl" alt="@item.MediaItem.Title" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
+                                
+                                <!-- Badge de Tipo -->
+                                <span class="absolute top-3 left-3 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider backdrop-blur-md border border-white/10
+                                      @(item.MediaItem.Type == AMRecomen.Domain.Enums.MediaType.Anime ? "bg-red-500/80 text-white" :
+                                        item.MediaItem.Type == AMRecomen.Domain.Enums.MediaType.Manhwa ? "bg-blue-500/80 text-white" :
+                                        item.MediaItem.Type == AMRecomen.Domain.Enums.MediaType.Manhua ? "bg-green-500/80 text-white" :
+                                        item.MediaItem.Type == AMRecomen.Domain.Enums.MediaType.Pelicula ? "bg-yellow-500/80 text-black" : "bg-purple-500/80 text-white")">
+                                    @item.MediaItem.Type
+                                </span>
+                            </a>
+
+                            <!-- Acciones rápidas (formularios) -->
+                            <div class="p-4 flex flex-col flex-grow justify-between space-y-3">
+                                <div>
+                                    <a asp-page="/Detalle" asp-route-slug="@item.MediaItem.Slug">
+                                        <h3 class="font-semibold text-white hover:text-brand-400 transition-colors line-clamp-1 text-sm md:text-base">
+                                            @item.MediaItem.Title
+                                        </h3>
+                                    </a>
+                                    <p class="text-xs text-gray-500 mt-1">Visto en: @item.UpdatedAt.ToString("dd/MM/yyyy")</p>
+                                </div>
+
+                                <div class="flex gap-2 pt-2">
+                                    <!-- Devolver a por ver -->
+                                    <form method="post" asp-page-handler="UpdateStatus" class="flex-grow">
+                                        <input type="hidden" name="mediaItemId" value="@item.MediaItemId" />
+                                        <input type="hidden" name="status" value="@AMRecomen.Domain.Enums.LibraryStatus.PorVer" />
+                                        <button type="submit" class="w-full py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5" title="Mover a por ver">
+                                            <i class="fa-solid fa-clock"></i> Por ver
+                                        </button>
+                                    </form>
+
+                                    <!-- Quitar -->
+                                    <form method="post" asp-page-handler="Remove" class="flex-shrink-0">
+                                        <input type="hidden" name="mediaItemId" value="@item.MediaItemId" />
+                                        <button type="submit" class="p-2 bg-red-600/10 hover:bg-red-600 text-red-400 hover:text-white rounded-lg text-xs font-semibold transition-all border border-red-500/20 hover:border-transparent" title="Quitar de la biblioteca">
+                                            <i class="fa-solid fa-trash-can"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+
+        <!-- Contenedor Mis Valoraciones (Gustos) -->
+        <div id="panel-valorados" class="space-y-6 hidden">
+            @{
+                var valoradosItems = Model.LibraryItems
+                    .Where(l => l.UserRating.HasValue)
+                    .OrderByDescending(l => l.UserRating)
+                    .ThenByDescending(l => l.UpdatedAt)
+                    .ToList();
+            }
+            @if (!valoradosItems.Any())
+            {
+                <div class="glass rounded-3xl p-12 text-center max-w-xl mx-auto space-y-4">
+                    <div class="inline-flex p-4 bg-amber-500/10 rounded-full text-amber-400">
+                        <i class="fa-solid fa-star text-3xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-white">Sin valoraciones aún</h3>
+                    <p class="text-gray-400 text-sm">
+                        Aquí verás las obras que califiques del 1 al 10 en su ficha de detalle. ¡Empieza a calificar tus series y películas favoritas para armar tu biblioteca de gustos!
+                    </p>
+                    <a asp-page="/Index" class="inline-flex items-center justify-center px-6 py-3 bg-brand-600 hover:bg-brand-500 text-white font-medium rounded-xl transition-all shadow-lg shadow-brand-500/20 text-sm">
+                        Explorar catálogo
+                    </a>
+                </div>
+            }
+            else
+            {
+                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                    @foreach (var item in valoradosItems)
+                    {
+                        <div class="group flex flex-col glass rounded-2xl overflow-hidden glow-card relative">
+                            <!-- Portada -->
+                            <a asp-page="/Detalle" asp-route-slug="@item.MediaItem.Slug" class="relative aspect-[2/3] w-full overflow-hidden bg-gray-900 block">
+                                <img src="@item.MediaItem.CoverImageUrl" alt="@item.MediaItem.Title" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
+                                
+                                <!-- Badge de Tipo -->
+                                <span class="absolute top-3 left-3 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider backdrop-blur-md border border-white/10
+                                      @(item.MediaItem.Type == AMRecomen.Domain.Enums.MediaType.Anime ? "bg-red-500/80 text-white" :
+                                        item.MediaItem.Type == AMRecomen.Domain.Enums.MediaType.Manhwa ? "bg-blue-500/80 text-white" :
+                                        item.MediaItem.Type == AMRecomen.Domain.Enums.MediaType.Manhua ? "bg-green-500/80 text-white" :
+                                        item.MediaItem.Type == AMRecomen.Domain.Enums.MediaType.Pelicula ? "bg-yellow-500/80 text-black" : "bg-purple-500/80 text-white")">
+                                    @item.MediaItem.Type
+                                </span>
+
+                                <!-- Badge de Calificación (Esquina inferior derecha) -->
+                                <div class="absolute bottom-3 right-3 px-2.5 py-1 bg-amber-500 text-white font-black text-xs rounded-xl border border-amber-400/30 flex items-center gap-1.5 shadow-lg">
+                                    <i class="fa-solid fa-star text-white"></i>
+                                    <span>@item.UserRating / 10</span>
+                                </div>
+                            </a>
+
+                            <!-- Acciones rápidas (formularios) -->
+                            <div class="p-4 flex flex-col flex-grow justify-between space-y-3">
+                                <div>
+                                    <a asp-page="/Detalle" asp-route-slug="@item.MediaItem.Slug">
+                                        <h3 class="font-semibold text-white hover:text-brand-400 transition-colors line-clamp-1 text-sm md:text-base">
+                                            @item.MediaItem.Title
+                                        </h3>
+                                    </a>
+                                    <p class="text-xs text-gray-500 mt-1">Calificado: @item.UpdatedAt.ToString("dd/MM/yyyy")</p>
+                                </div>
+
+                                <div class="flex gap-2 pt-2 border-t border-gray-800/40">
+                                    <!-- Editar nota (Redirige al detalle) -->
+                                    <a asp-page="/Detalle" asp-route-slug="@item.MediaItem.Slug" class="flex-grow py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white rounded-lg text-xs font-semibold transition-all border border-gray-700/50 hover:border-transparent flex items-center justify-center gap-1.5">
+                                        <i class="fa-solid fa-star"></i> Cambiar Nota
+                                    </a>
+
+                                    <!-- Quitar -->
+                                    <form method="post" asp-page-handler="Remove" class="flex-shrink-0">
+                                        <input type="hidden" name="mediaItemId" value="@item.MediaItemId" />
+                                        <button type="submit" class="p-2 bg-red-600/10 hover:bg-red-600 text-red-400 hover:text-white rounded-lg text-xs font-semibold transition-all border border-red-500/20 hover:border-transparent" title="Quitar de la biblioteca">
+                                            <i class="fa-solid fa-trash-can"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function switchTab(tab) {
+            const tabPorVer = document.getElementById('tab-por-ver');
+            const tabVisto = document.getElementById('tab-visto');
+            const tabValorados = document.getElementById('tab-valorados');
+            const panelPorVer = document.getElementById('panel-por-ver');
+            const panelVisto = document.getElementById('panel-visto');
+            const panelValorados = document.getElementById('panel-valorados');
+
+            // Reset tab styles
+            const activeTabClass = "px-5 py-3 font-semibold text-sm transition-all border-b-2 border-brand-500 text-brand-400 -mb-[2px] focus:outline-none whitespace-nowrap";
+            const inactiveTabClass = "px-5 py-3 font-semibold text-sm transition-all border-b-2 border-transparent text-gray-400 hover:text-white -mb-[2px] focus:outline-none whitespace-nowrap";
+
+            tabPorVer.className = inactiveTabClass;
+            tabVisto.className = inactiveTabClass;
+            tabValorados.className = inactiveTabClass;
+
+            panelPorVer.classList.add('hidden');
+            panelVisto.classList.add('hidden');
+            panelValorados.classList.add('hidden');
+
+            if (tab === 'por-ver') {
+                tabPorVer.className = activeTabClass;
+                panelPorVer.classList.remove('hidden');
+            } else if (tab === 'visto') {
+                tabVisto.className = activeTabClass;
+                panelVisto.classList.remove('hidden');
+            } else if (tab === 'valorados') {
+                tabValorados.className = activeTabClass;
+                panelValorados.classList.remove('hidden');
+            }
+        }
+    </script>
+}
