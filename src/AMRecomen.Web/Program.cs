@@ -9,6 +9,10 @@ using AMRecomen.Application.Interfaces;
 using AMRecomen.Application.Services;
 using Npgsql;
 using Microsoft.AspNetCore.Authentication.Cookies;
+
+// Habilitar comportamiento heredado de marcas de tiempo para admitir DateTimes de tipo Local/Unspecified en PostgreSQL
+AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
