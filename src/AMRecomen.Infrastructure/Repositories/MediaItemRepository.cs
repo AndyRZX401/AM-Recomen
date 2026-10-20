@@ -191,9 +191,10 @@ public class MediaItemRepository : IMediaItemRepository
         var normalizedQuery = query.ToLower().Trim();
         var isSqlite = _context.Database.ProviderName == "Microsoft.EntityFrameworkCore.Sqlite";
 
+        List<MediaItem> candidates;
         if (isSqlite)
         {
-            return await _context.MediaItems
+            candidates = await _context.MediaItems
                 .AsNoTracking()
                 .Include(m => m.Tags)
                 .Where(m => EF.Functions.Like(m.Title, $"%{normalizedQuery}%") ||
@@ -201,12 +202,12 @@ public class MediaItemRepository : IMediaItemRepository
                             EF.Functions.Like(m.OriginalTitle, $"%{normalizedQuery}%") ||
                             EF.Functions.Like(m.AlternativeTitles, $"%{normalizedQuery}%"))
                 .OrderByDescending(m => m.HypeScore)
-                .Take(count)
+                .Take(40)
                 .ToListAsync();
         }
         else
         {
-            return await _context.MediaItems
+            candidates = await _context.MediaItems
                 .AsNoTracking()
                 .Include(m => m.Tags)
                 .Where(m => EF.Functions.ILike(m.Title, $"%{normalizedQuery}%") ||
@@ -214,9 +215,47 @@ public class MediaItemRepository : IMediaItemRepository
                             EF.Functions.ILike(m.OriginalTitle, $"%{normalizedQuery}%") ||
                             EF.Functions.ILike(m.AlternativeTitles, $"%{normalizedQuery}%"))
                 .OrderByDescending(m => m.HypeScore)
-                .Take(count)
+                .Take(40)
                 .ToListAsync();
         }
+
+        // Priorizar coincidencias exactas o de prefijo en el título principal antes que coincidencias parciales secundarias
+        return candidates
+            .OrderByDescending(m =>
+            {
+                int relevance = 0;
+                if (m.Title.Equals(normalizedQuery, StringComparison.OrdinalIgnoreCase) ||
+                    m.EnglishTitle.Equals(normalizedQuery, StringComparison.OrdinalIgnoreCase) ||
+                    m.OriginalTitle.Equals(normalizedQuery, StringComparison.OrdinalIgnoreCase))
+                {
+                    relevance += 1000;
+                }
+                else if (m.Title.StartsWith(normalizedQuery, StringComparison.OrdinalIgnoreCase) ||
+                         m.EnglishTitle.StartsWith(normalizedQuery, StringComparison.OrdinalIgnoreCase) ||
+                         m.OriginalTitle.StartsWith(normalizedQuery, StringComparison.OrdinalIgnoreCase))
+                {
+                    relevance += 500;
+                }
+                else if (m.Title.Contains(normalizedQuery, StringComparison.OrdinalIgnoreCase) ||
+                         m.EnglishTitle.Contains(normalizedQuery, StringComparison.OrdinalIgnoreCase))
+                {
+                    relevance += 250;
+                }
+                else
+                {
+                    relevance += 100;
+                }
+
+                // Bonificación ligera para Anime cuando el usuario busca títulos de anime
+                if (m.Type == MediaType.Anime)
+                {
+                    relevance += 15;
+                }
+
+                return relevance + m.HypeScore;
+            })
+            .Take(count)
+            .ToList();
     }
 
     public async Task AddAsync(MediaItem item)

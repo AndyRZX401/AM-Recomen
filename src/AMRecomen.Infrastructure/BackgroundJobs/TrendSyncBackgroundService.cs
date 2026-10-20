@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -20,11 +21,16 @@ public class TrendSyncBackgroundService : BackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<TrendSyncBackgroundService> _logger;
+    private readonly IMemoryCache _cache;
 
-    public TrendSyncBackgroundService(IServiceScopeFactory scopeFactory, ILogger<TrendSyncBackgroundService> logger)
+    public TrendSyncBackgroundService(
+        IServiceScopeFactory scopeFactory,
+        ILogger<TrendSyncBackgroundService> logger,
+        IMemoryCache cache)
     {
         _scopeFactory = scopeFactory;
         _logger = logger;
+        _cache = cache;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -99,8 +105,19 @@ public class TrendSyncBackgroundService : BackgroundService
 
         _logger.LogInformation("Sincronización: se obtuvieron {Count} elementos de tendencias de APIs externas.", allTrends.Count);
 
-        foreach (var ext in allTrends)
+        // Procesar primero las obras curadas (que ya tienen sinopsis en español) para que el inicio cargue al instante
+        var orderedTrends = allTrends.OrderBy(t => t.NeedTranslation ? 1 : 0).ToList();
+        bool curatedBatchCleared = false;
+
+        foreach (var ext in orderedTrends)
         {
+            if (ext.NeedTranslation && !curatedBatchCleared)
+            {
+                curatedBatchCleared = true;
+                await mediaRepository.SaveChangesAsync();
+                InvalidateTrendingCache();
+            }
+
             try
             {
                 var existing = await mediaRepository.GetByExternalIdAsync(ext.ExternalId);
@@ -109,27 +126,44 @@ public class TrendSyncBackgroundService : BackgroundService
 
                 if (existing != null)
                 {
-                    // Actualizar métricas y rating del elemento existente
+                    // Actualizar métricas, títulos y portadas del elemento existente
                     existing.HypeScore = hypeScore;
                     existing.Rating = ext.Rating > 0 ? ext.Rating : existing.Rating;
                     existing.Status = !string.IsNullOrEmpty(ext.Status) ? ext.Status : existing.Status;
+                    if (!string.IsNullOrEmpty(ext.Title))
+                    {
+                        existing.Title = ext.Title;
+                    }
+                    if (!string.IsNullOrEmpty(ext.EnglishTitle))
+                    {
+                        existing.EnglishTitle = ext.EnglishTitle;
+                    }
+                    if (!string.IsNullOrEmpty(ext.OriginalTitle))
+                    {
+                        existing.OriginalTitle = ext.OriginalTitle;
+                    }
+                    if (ext.AlternativeTitles.Any())
+                    {
+                        existing.AlternativeTitles = string.Join(", ", ext.AlternativeTitles);
+                    }
                     
-                    // Reparar portadas o sinopsis que hayan quedado vacías o con placeholder temporal
-                    if (!string.IsNullOrEmpty(ext.CoverImageUrl) && (string.IsNullOrEmpty(existing.CoverImageUrl) || existing.CoverImageUrl.Contains("unsplash.com") || existing.CoverImageUrl.EndsWith("/covers/") || existing.CoverImageUrl.Contains("placeholder")))
+                    // Reparar portadas o sinopsis que hayan quedado vacías, con Unsplash o con hotlink bloqueado de MangaDex
+                    if (!string.IsNullOrEmpty(ext.CoverImageUrl) &&
+                        (string.IsNullOrEmpty(existing.CoverImageUrl) ||
+                         existing.CoverImageUrl.Contains("unsplash.com") ||
+                         existing.CoverImageUrl.Contains("uploads.mangadex.org") ||
+                         existing.CoverImageUrl.EndsWith("/covers/") ||
+                         existing.CoverImageUrl.Contains("placeholder")))
                     {
                         existing.CoverImageUrl = ext.CoverImageUrl;
                     }
-                    if (!string.IsNullOrEmpty(ext.Synopsis) && (string.IsNullOrEmpty(existing.Synopsis) || existing.Synopsis.Length < ext.Synopsis.Length))
+                    if (!string.IsNullOrEmpty(ext.Synopsis) && (!ext.NeedTranslation || string.IsNullOrEmpty(existing.Synopsis) || existing.Synopsis.Length < ext.Synopsis.Length))
                     {
                         existing.Synopsis = ext.Synopsis;
                     }
                     if (ext.ReleaseDate.HasValue && !existing.ReleaseDate.HasValue)
                     {
                         existing.ReleaseDate = ext.ReleaseDate;
-                    }
-                    if (!string.IsNullOrEmpty(ext.Title) && string.IsNullOrEmpty(existing.Title))
-                    {
-                        existing.Title = ext.Title;
                     }
                     
                     // Actualizar géneros si el elemento existente tenía solo un género genérico o estaba vacío
@@ -237,7 +271,16 @@ public class TrendSyncBackgroundService : BackgroundService
 
         await mediaRepository.SaveChangesAsync();
         await trendRepository.SaveChangesAsync();
+        InvalidateTrendingCache();
         _logger.LogInformation("Sincronización de tendencias finalizada correctamente.");
+    }
+
+    private void InvalidateTrendingCache()
+    {
+        foreach (MediaType type in Enum.GetValues(typeof(MediaType)))
+        {
+            _cache.Remove($"TopTrending_{type}_3");
+        }
     }
 
     private async Task<IEnumerable<ExternalMediaResult>> SafeFetchAsync(Func<Task<IEnumerable<ExternalMediaResult>>> fetchCall)

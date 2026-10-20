@@ -79,18 +79,34 @@ public class SearchAndIngestionService
 
         // 3. Ingerir los resultados externos en la base de datos
         var ingestedItems = new List<MediaItem>();
+        int translationsDone = 0;
         foreach (var ext in externalResults)
         {
+            double hypeScore = HypeCalculator.CalculateHypeScore(ext);
+
             // Evitar duplicación: verificar si ya existe por ExternalId
             var existing = await _mediaRepository.GetByExternalIdAsync(ext.ExternalId);
             if (existing != null)
             {
+                if (!string.IsNullOrEmpty(ext.CoverImageUrl) &&
+                    (string.IsNullOrEmpty(existing.CoverImageUrl) ||
+                     existing.CoverImageUrl.Contains("unsplash.com") ||
+                     existing.CoverImageUrl.Contains("uploads.mangadex.org")))
+                {
+                    existing.CoverImageUrl = ext.CoverImageUrl;
+                }
+                if (hypeScore > existing.HypeScore)
+                {
+                    existing.HypeScore = hypeScore;
+                }
+                if (ext.Rating > existing.Rating)
+                {
+                    existing.Rating = ext.Rating;
+                }
+                await _mediaRepository.UpdateAsync(existing);
                 ingestedItems.Add(existing);
                 continue;
             }
-
-            // Calcular HypeScore (Popularidad/Fama) usando calculadora compartida
-            double hypeScore = HypeCalculator.CalculateHypeScore(ext);
 
             // Determinar sufijo de Slug para evitar colisiones y optimizar SEO
             string typeSuffix = ext.Type switch
@@ -122,10 +138,11 @@ public class SearchAndIngestionService
                 }
             }
 
-            // Traducir sinopsis al español de manera automática y resiliente si es necesario
+            // Traducir sinopsis al español para los primeros resultados principales para mantener respuesta instantánea
             var synopsis = ext.Synopsis;
-            if (ext.NeedTranslation && !string.IsNullOrWhiteSpace(synopsis))
+            if (ext.NeedTranslation && !string.IsNullOrWhiteSpace(synopsis) && translationsDone < 4)
             {
+                translationsDone++;
                 synopsis = await _translationService.TranslateToSpanishAsync(synopsis);
             }
 

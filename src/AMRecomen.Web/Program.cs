@@ -201,6 +201,18 @@ using (var scope = app.Services.CreateScope())
         // EnsureCreatedAsync creará la base de datos y tablas de forma dinámica sin importar si es SQLite o PostgreSQL
         await context.Database.EnsureCreatedAsync();
 
+        // Limpiar registros antiguos con portadas genéricas de Unsplash o bloqueadas por hotlink de MangaDex
+        var legacyItems = await context.MediaItems
+            .Where(m => m.CoverImageUrl.Contains("unsplash.com") ||
+                        m.CoverImageUrl.Contains("uploads.mangadex.org") ||
+                        m.ExternalId.StartsWith("jikan_mock"))
+            .ToListAsync();
+        if (legacyItems.Any())
+        {
+            context.MediaItems.RemoveRange(legacyItems);
+            await context.SaveChangesAsync();
+        }
+
         // Sembrar cuenta de prueba "andy" con contraseña "1234" si no existe
         var userExists = await context.Users.AnyAsync(u => u.Username == "andy");
         if (!userExists)
