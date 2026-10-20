@@ -22,24 +22,26 @@ builder.Services.AddControllers();
 builder.Services.AddMemoryCache();
 
 // 1. Configurar base de datos con resiliencia de arranque (PostgreSQL principal, SQLite de respaldo)
-var connectionString = Environment.GetEnvironmentVariable("DATABASE_URL")
-                       ?? builder.Configuration["DATABASE_URL"]
-                       ?? builder.Configuration.GetConnectionString("DefaultConnection");
+var rawConnectionString = Environment.GetEnvironmentVariable("DATABASE_URL")
+                          ?? builder.Configuration["DATABASE_URL"]
+                          ?? builder.Configuration.GetConnectionString("DefaultConnection");
+
+var connectionString = rawConnectionString?.Trim().Trim('"', '\'');
 
 // Convertir automáticamente formato de URI de Render (postgres:// o postgresql://) a formato estándar de ADO.NET compatible con Npgsql
-if (!string.IsNullOrEmpty(connectionString) && (connectionString.StartsWith("postgres://") || connectionString.StartsWith("postgresql://")))
+if (!string.IsNullOrEmpty(connectionString) && (connectionString.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase) || connectionString.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase)))
 {
     try
     {
         var parts = connectionString.Split(';', 2);
-        var uriPart = parts[0];
-        var extraParams = parts.Length > 1 ? parts[1] : "";
+        var uriPart = parts[0].Trim();
+        var extraParams = parts.Length > 1 ? parts[1].Trim() : "";
         
-        var uriString = uriPart.Replace("postgresql://", "postgres://");
+        var uriString = System.Text.RegularExpressions.Regex.Replace(uriPart, "^postgresql://", "postgres://", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
         var uri = new Uri(uriString);
-        var userInfo = uri.UserInfo.Split(':');
-        var username = userInfo[0];
-        var password = userInfo.Length > 1 ? userInfo[1] : "";
+        var userInfo = uri.UserInfo.Split(':', 2);
+        var username = Uri.UnescapeDataString(userInfo[0]);
+        var password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : "";
         var host = uri.Host;
         var port = uri.Port > 0 ? uri.Port : 5432;
         var database = uri.AbsolutePath.TrimStart('/');
@@ -52,18 +54,48 @@ if (!string.IsNullOrEmpty(connectionString) && (connectionString.StartsWith("pos
         }
         else
         {
-            connectionString += ";SSL Mode=Require;Trust Server Certificate=true";
+            connectionString += ";SSL Mode=Prefer;Trust Server Certificate=true";
         }
     }
     catch (Exception ex)
     {
-        Console.WriteLine($">> [BD] Error al parsear URI de PostgreSQL: {ex.Message}. Se usará la cadena original.");
+        Console.WriteLine($">> [BD] Error al parsear URI de PostgreSQL: {ex.Message}. Se evaluará respaldo SQLite.");
+        connectionString = null;
     }
 }
 
-bool usePostgres = !string.IsNullOrEmpty(connectionString) && 
-                   !connectionString.Contains("localhost") && 
-                   !connectionString.Contains("127.0.0.1");
+bool usePostgres = false;
+if (!string.IsNullOrEmpty(connectionString) &&
+    !connectionString.Contains("localhost", StringComparison.OrdinalIgnoreCase) &&
+    !connectionString.Contains("127.0.0.1"))
+{
+    try
+    {
+        var csb = new NpgsqlConnectionStringBuilder(connectionString)
+        {
+            Timeout = 5,
+            CommandTimeout = 10
+        };
+
+        if (!string.IsNullOrWhiteSpace(csb.Host))
+        {
+            // Verificar primero resolución DNS para evitar SocketException (Name or service not known) en tiempo de ejecución
+            System.Net.Dns.GetHostAddresses(csb.Host);
+
+            // Verificar que el servidor PostgreSQL responda realmente antes de fijarlo como proveedor
+            using var testConn = new NpgsqlConnection(csb.ConnectionString);
+            testConn.Open();
+            usePostgres = true;
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.WriteLine($">> [BD] No se pudo conectar al servidor PostgreSQL ({ex.GetType().Name}: {ex.Message}). Activando respaldo automático SQLite...");
+        Console.ResetColor();
+        usePostgres = false;
+    }
+}
 
 if (usePostgres)
 {

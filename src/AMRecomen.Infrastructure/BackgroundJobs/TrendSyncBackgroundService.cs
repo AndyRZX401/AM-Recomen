@@ -29,6 +29,9 @@ public class TrendSyncBackgroundService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        // Ceder el hilo de arranque inmediatamente para que Kestrel abra el puerto HTTP sin demoras en Render
+        await Task.Yield();
+
         _logger.LogInformation("Servicio en segundo plano de sincronización de tendencias iniciado.");
 
         // Ejecutar inmediatamente al iniciar
