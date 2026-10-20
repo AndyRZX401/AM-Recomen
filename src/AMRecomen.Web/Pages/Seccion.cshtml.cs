@@ -21,15 +21,21 @@ public class SeccionModel : PageModel
     public string Tipo { get; set; } = "Anime";
     public MediaType MediaTypeEnum { get; set; }
     public IEnumerable<MediaItem> Items { get; set; } = new List<MediaItem>();
+    public IEnumerable<string> AvailableTags { get; set; } = new List<string>();
     
+    public string? SelectedTag { get; set; }
+    public string SortBy { get; set; } = "hype";
+
     public int PageNumber { get; set; }
     public int PageSize { get; set; } = 12;
     public int TotalItems { get; set; }
     public int TotalPages => (int)Math.Ceiling((double)TotalItems / PageSize);
 
-    public async Task OnGetAsync(string? tipo, int p = 1)
+    public async Task OnGetAsync(string? tipo, string? tag = null, string? orden = null, int p = 1)
     {
         Tipo = tipo ?? "Anime";
+        SelectedTag = string.IsNullOrWhiteSpace(tag) ? null : tag.Trim();
+        SortBy = string.IsNullOrWhiteSpace(orden) ? "hype" : orden.ToLower().Trim();
         
         // Mapear el string a MediaType
         MediaTypeEnum = Tipo.ToLower() switch
@@ -55,8 +61,11 @@ public class SeccionModel : PageModel
 
         PageNumber = p < 1 ? 1 : p;
 
-        // Cargar elementos paginados
-        var result = await _mediaRepository.GetPagedByTypeAsync(MediaTypeEnum, PageNumber, PageSize);
+        // Cargar etiquetas disponibles para filtros de esta sección
+        AvailableTags = await _mediaRepository.GetTagsByTypeAsync(MediaTypeEnum);
+
+        // Cargar elementos paginados y filtrados
+        var result = await _mediaRepository.GetPagedByTypeAsync(MediaTypeEnum, PageNumber, PageSize, SelectedTag, SortBy);
         Items = result.Items;
         TotalItems = result.TotalCount;
     }

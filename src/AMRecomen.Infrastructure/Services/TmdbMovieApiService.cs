@@ -16,11 +16,59 @@ public class TmdbMovieApiService : IMovieApiService
     private readonly HttpClient _httpClient;
     private readonly string _apiKey;
 
+    private static readonly Dictionary<int, string> MovieGenres = new()
+    {
+        { 28, "Acción" },
+        { 12, "Aventura" },
+        { 16, "Animación" },
+        { 35, "Comedia" },
+        { 80, "Crimen" },
+        { 99, "Documental" },
+        { 18, "Drama" },
+        { 10751, "Familia" },
+        { 14, "Fantasía" },
+        { 36, "Historia" },
+        { 27, "Terror" },
+        { 10402, "Música" },
+        { 9648, "Misterio" },
+        { 10749, "Romance" },
+        { 878, "Ciencia Ficción" },
+        { 10770, "Película de TV" },
+        { 53, "Suspenso" },
+        { 10752, "Bélica" },
+        { 37, "Western" }
+    };
+
+    private static readonly Dictionary<int, string> TvGenres = new()
+    {
+        { 10759, "Acción y Aventura" },
+        { 16, "Animación" },
+        { 35, "Comedia" },
+        { 80, "Crimen" },
+        { 99, "Documental" },
+        { 18, "Drama" },
+        { 10751, "Familia" },
+        { 10762, "Infantil" },
+        { 9648, "Misterio" },
+        { 10763, "Noticias" },
+        { 10764, "Reality" },
+        { 10765, "Ciencia Ficción y Fantasía" },
+        { 10766, "Telenovela" },
+        { 10767, "Talk Show" },
+        { 10768, "Guerra y Política" },
+        { 37, "Western" }
+    };
+
     public TmdbMovieApiService(HttpClient httpClient, IConfiguration configuration)
     {
         _httpClient = httpClient;
         _httpClient.BaseAddress = new Uri("https://api.themoviedb.org/3/");
-        _apiKey = configuration["TMDb:ApiKey"] ?? string.Empty;
+        _apiKey = configuration["TMDb:ApiKey"] 
+                  ?? configuration["TMDB_API_KEY"] 
+                  ?? configuration["NEXT_PUBLIC_TMDB_API_KEY"]
+                  ?? Environment.GetEnvironmentVariable("TMDB_API_KEY") 
+                  ?? Environment.GetEnvironmentVariable("TMDb__ApiKey")
+                  ?? string.Empty;
     }
 
     private bool UseMock()
@@ -160,6 +208,8 @@ public class TmdbMovieApiService : IMovieApiService
             if (!string.IsNullOrWhiteSpace(originalTitle) && originalTitle != title)
                 alternativeTitles.Add(originalTitle);
 
+            var genres = ExtractGenres(item, MovieGenres, "Película");
+
             return new ExternalMediaResult
             {
                 ExternalId = $"tmdb_{tmdbId}",
@@ -170,11 +220,11 @@ public class TmdbMovieApiService : IMovieApiService
                 Synopsis = synopsis,
                 CoverImageUrl = coverUrl,
                 Type = MediaType.Pelicula,
-                Rating = rating,
-                Status = "Released",
+                Rating = Math.Round(rating, 1),
+                Status = "Estrenada",
                 ReleaseDate = releaseDate,
                 PopularityScore = popularity,
-                Genres = new List<string> { "Película" } // La API básica de trending no da nombres de género directamente sin otra llamada, agregamos uno genérico
+                Genres = genres
             };
         }
         catch
@@ -398,6 +448,8 @@ public class TmdbMovieApiService : IMovieApiService
             if (!string.IsNullOrWhiteSpace(originalTitle) && originalTitle != title)
                 alternativeTitles.Add(originalTitle);
 
+            var genres = ExtractGenres(item, TvGenres, "Serie");
+
             return new ExternalMediaResult
             {
                 ExternalId = $"tmdb_tv_{tmdbId}",
@@ -408,17 +460,56 @@ public class TmdbMovieApiService : IMovieApiService
                 Synopsis = synopsis,
                 CoverImageUrl = coverUrl,
                 Type = MediaType.Serie,
-                Rating = rating,
-                Status = "Running",
+                Rating = Math.Round(rating, 1),
+                Status = "En emisión",
                 ReleaseDate = releaseDate,
                 PopularityScore = popularity,
-                Genres = new List<string> { "Serie" }
+                Genres = genres
             };
         }
         catch
         {
             return null;
         }
+    }
+
+    private static List<string> ExtractGenres(JsonElement item, Dictionary<int, string> genreMap, string fallbackGenre)
+    {
+        var genres = new List<string>();
+        if (item.TryGetProperty("genre_ids", out var genreIdsProp) && genreIdsProp.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var gIdElem in genreIdsProp.EnumerateArray())
+            {
+                if (gIdElem.ValueKind == JsonValueKind.Number && genreMap.TryGetValue(gIdElem.GetInt32(), out var gName))
+                {
+                    if (!genres.Contains(gName))
+                        genres.Add(gName);
+                }
+            }
+        }
+        else if (item.TryGetProperty("genres", out var genresObjProp) && genresObjProp.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var gObj in genresObjProp.EnumerateArray())
+            {
+                if (gObj.TryGetProperty("id", out var idElem) && idElem.ValueKind == JsonValueKind.Number && genreMap.TryGetValue(idElem.GetInt32(), out var gName))
+                {
+                    if (!genres.Contains(gName))
+                        genres.Add(gName);
+                }
+                else if (gObj.TryGetProperty("name", out var nameElem))
+                {
+                    var name = nameElem.GetString();
+                    if (!string.IsNullOrWhiteSpace(name) && !genres.Contains(name))
+                        genres.Add(name);
+                }
+            }
+        }
+
+        if (!genres.Any())
+        {
+            genres.Add(fallbackGenre);
+        }
+        return genres;
     }
 
     private IEnumerable<ExternalMediaResult> GetMockSeries()

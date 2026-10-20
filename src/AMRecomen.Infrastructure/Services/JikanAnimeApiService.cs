@@ -49,7 +49,7 @@ public class JikanAnimeApiService : IAnimeApiService
         {
             // Espera ligera para respetar el rate limit de Jikan
             await Task.Delay(500);
-            var response = await _httpClient.GetAsync("top/anime?filter=bypopularity&limit=10");
+            var response = await _httpClient.GetAsync("seasons/now?limit=10");
             if (!response.IsSuccessStatusCode)
                 return GetMockAnime();
 
@@ -104,6 +104,36 @@ public class JikanAnimeApiService : IAnimeApiService
         return list;
     }
 
+    private static readonly Dictionary<string, string> AnimeGenreTranslations = new(StringComparer.OrdinalIgnoreCase)
+    {
+        { "Action", "Acción" },
+        { "Adventure", "Aventura" },
+        { "Avant Garde", "Vanguardia" },
+        { "Award Winning", "Premiado" },
+        { "Boys Love", "Boys Love" },
+        { "Comedy", "Comedia" },
+        { "Drama", "Drama" },
+        { "Fantasy", "Fantasía" },
+        { "Girls Love", "Girls Love" },
+        { "Gourmet", "Gastronomía" },
+        { "Horror", "Terror" },
+        { "Mystery", "Misterio" },
+        { "Romance", "Romance" },
+        { "Sci-Fi", "Ciencia Ficción" },
+        { "Slice of Life", "Recuentos de la Vida" },
+        { "Sports", "Deportes" },
+        { "Supernatural", "Sobrenatural" },
+        { "Suspense", "Suspenso" },
+        { "Ecchi", "Ecchi" },
+        { "Mecha", "Mecha" },
+        { "Music", "Música" },
+        { "Psychological", "Psicológico" },
+        { "School", "Vida Escolar" },
+        { "Historical", "Histórico" },
+        { "Isekai", "Isekai" },
+        { "Military", "Militar" }
+    };
+
     private ExternalMediaResult? ParseJikanItem(JsonElement item)
     {
         try
@@ -153,7 +183,15 @@ public class JikanAnimeApiService : IAnimeApiService
                 foreach (var g in genresProp.EnumerateArray())
                 {
                     if (g.TryGetProperty("name", out var gName))
-                        genres.Add(gName.GetString() ?? "");
+                    {
+                        var rawName = gName.GetString() ?? "";
+                        if (!string.IsNullOrWhiteSpace(rawName))
+                        {
+                            var translated = AnimeGenreTranslations.TryGetValue(rawName, out var esName) ? esName : rawName;
+                            if (!genres.Contains(translated))
+                                genres.Add(translated);
+                        }
+                    }
                 }
             }
 

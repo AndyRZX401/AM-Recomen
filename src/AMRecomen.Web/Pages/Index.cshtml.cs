@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -34,6 +35,7 @@ public class IndexModel : PageModel
     public string? Q { get; set; }
 
     public IEnumerable<MediaItem> SearchResults { get; set; } = Enumerable.Empty<MediaItem>();
+    public IEnumerable<MediaItem> PersonalizedRecommendations { get; set; } = Enumerable.Empty<MediaItem>();
 
     public IEnumerable<MediaItem> TopAnime { get; set; } = Enumerable.Empty<MediaItem>();
     public IEnumerable<MediaItem> TopManhwa { get; set; } = Enumerable.Empty<MediaItem>();
@@ -52,6 +54,14 @@ public class IndexModel : PageModel
         else
         {
             IsSearch = false;
+
+            // Si el usuario está autenticado, cargar recomendaciones personalizadas basadas en su biblioteca y valoraciones
+            var claim = User.FindFirst(ClaimTypes.NameIdentifier);
+            if (claim != null && Guid.TryParse(claim.Value, out var userId))
+            {
+                PersonalizedRecommendations = await _mediaRepository.GetPersonalizedRecommendationsAsync(userId, 4);
+            }
+
             // Cargar los 3 mejores para cada sección usando caché de 10 minutos
             TopAnime = await GetCachedTopTrendingAsync(MediaType.Anime, 3);
             TopManhwa = await GetCachedTopTrendingAsync(MediaType.Manhwa, 3);

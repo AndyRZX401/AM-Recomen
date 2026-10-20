@@ -94,6 +94,7 @@
                                     <form method="post" asp-page-handler="UpdateStatus" class="flex-grow">
                                         <input type="hidden" name="mediaItemId" value="@item.MediaItemId" />
                                         <input type="hidden" name="status" value="@AMRecomen.Domain.Enums.LibraryStatus.Visto" />
+                                        <input type="hidden" name="tab" value="por-ver" />
                                         <button type="submit" class="w-full py-2 bg-emerald-600/20 hover:bg-emerald-600 text-emerald-400 hover:text-white rounded-lg text-xs font-semibold transition-all border border-emerald-500/20 hover:border-transparent flex items-center justify-center gap-1.5" title="Marcar como visto">
                                             <i class="fa-solid fa-check"></i> Visto
                                         </button>
@@ -102,6 +103,7 @@
                                     <!-- Quitar -->
                                     <form method="post" asp-page-handler="Remove" class="flex-shrink-0">
                                         <input type="hidden" name="mediaItemId" value="@item.MediaItemId" />
+                                        <input type="hidden" name="tab" value="por-ver" />
                                         <button type="submit" class="p-2 bg-red-600/10 hover:bg-red-600 text-red-400 hover:text-white rounded-lg text-xs font-semibold transition-all border border-red-500/20 hover:border-transparent" title="Quitar de la biblioteca">
                                             <i class="fa-solid fa-trash-can"></i>
                                         </button>
@@ -167,6 +169,7 @@
                                     <form method="post" asp-page-handler="UpdateStatus" class="flex-grow">
                                         <input type="hidden" name="mediaItemId" value="@item.MediaItemId" />
                                         <input type="hidden" name="status" value="@AMRecomen.Domain.Enums.LibraryStatus.PorVer" />
+                                        <input type="hidden" name="tab" value="visto" />
                                         <button type="submit" class="w-full py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5" title="Mover a por ver">
                                             <i class="fa-solid fa-clock"></i> Por ver
                                         </button>
@@ -175,6 +178,7 @@
                                     <!-- Quitar -->
                                     <form method="post" asp-page-handler="Remove" class="flex-shrink-0">
                                         <input type="hidden" name="mediaItemId" value="@item.MediaItemId" />
+                                        <input type="hidden" name="tab" value="visto" />
                                         <button type="submit" class="p-2 bg-red-600/10 hover:bg-red-600 text-red-400 hover:text-white rounded-lg text-xs font-semibold transition-all border border-red-500/20 hover:border-transparent" title="Quitar de la biblioteca">
                                             <i class="fa-solid fa-trash-can"></i>
                                         </button>
@@ -257,6 +261,7 @@
                                     <!-- Quitar -->
                                     <form method="post" asp-page-handler="Remove" class="flex-shrink-0">
                                         <input type="hidden" name="mediaItemId" value="@item.MediaItemId" />
+                                        <input type="hidden" name="tab" value="valorados" />
                                         <button type="submit" class="p-2 bg-red-600/10 hover:bg-red-600 text-red-400 hover:text-white rounded-lg text-xs font-semibold transition-all border border-red-500/20 hover:border-transparent" title="Quitar de la biblioteca">
                                             <i class="fa-solid fa-trash-can"></i>
                                         </button>
@@ -303,6 +308,18 @@
                 tabValorados.className = activeTabClass;
                 panelValorados.classList.remove('hidden');
             }
+
+            // Actualizar URL sin recargar para preservar la pestaña activa
+            const url = new URL(window.location);
+            url.searchParams.set('tab', tab);
+            window.history.replaceState({}, '', url);
         }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const initialTab = '@Model.ActiveTab';
+            if (initialTab && initialTab !== 'por-ver') {
+                switchTab(initialTab);
+            }
+        });
     </script>
 }

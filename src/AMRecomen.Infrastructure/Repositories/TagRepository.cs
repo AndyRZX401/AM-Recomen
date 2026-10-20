@@ -40,9 +40,25 @@ public class TagRepository : ITagRepository
             NormalizedName = normalized
         };
 
-        await _context.Tags.AddAsync(newTag);
-        await _context.SaveChangesAsync(); // Guardamos de inmediato para evitar colisiones en llamadas paralelas
-        return newTag;
+        try
+        {
+            await _context.Tags.AddAsync(newTag);
+            await _context.SaveChangesAsync(); // Guardamos de inmediato para evitar colisiones en llamadas paralelas
+            return newTag;
+        }
+        catch (DbUpdateException)
+        {
+            // Desacoplar la entidad fallida para no corromper el seguimiento de cambios en EF Core
+            _context.Entry(newTag).State = EntityState.Detached;
+
+            // Retornar la entidad que fue creada con éxito por la otra transacción paralela
+            var dbTag = await _context.Tags.FirstOrDefaultAsync(t => t.NormalizedName == normalized);
+            if (dbTag != null)
+            {
+                return dbTag;
+            }
+            throw; // Re-lanzar si la excepción fue por otro motivo
+        }
     }
 
     public async Task<IEnumerable<Tag>> GetAllAsync()

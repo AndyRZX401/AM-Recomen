@@ -22,18 +22,20 @@ public class BibliotecaModel : PageModel
     }
 
     public IEnumerable<LibraryItem> LibraryItems { get; set; } = new List<LibraryItem>();
+    public string ActiveTab { get; set; } = "por-ver";
 
-    public async Task<IActionResult> OnGetAsync()
+    public async Task<IActionResult> OnGetAsync(string? tab = null)
     {
         var userId = GetUserId();
         if (userId == Guid.Empty)
             return RedirectToPage("/Auth/Login");
 
+        ActiveTab = NormalizeTab(tab);
         LibraryItems = await _libraryRepository.GetLibraryByUserAsync(userId);
         return Page();
     }
 
-    public async Task<IActionResult> OnPostRemoveAsync(Guid mediaItemId)
+    public async Task<IActionResult> OnPostRemoveAsync(Guid mediaItemId, string? tab = null)
     {
         var userId = GetUserId();
         if (userId == Guid.Empty)
@@ -46,10 +48,10 @@ public class BibliotecaModel : PageModel
             await _libraryRepository.SaveChangesAsync();
         }
 
-        return RedirectToPage();
+        return RedirectToPage(new { tab = NormalizeTab(tab) });
     }
 
-    public async Task<IActionResult> OnPostUpdateStatusAsync(Guid mediaItemId, LibraryStatus status)
+    public async Task<IActionResult> OnPostUpdateStatusAsync(Guid mediaItemId, LibraryStatus status, string? tab = null)
     {
         var userId = GetUserId();
         if (userId == Guid.Empty)
@@ -63,7 +65,17 @@ public class BibliotecaModel : PageModel
             await _libraryRepository.SaveChangesAsync();
         }
 
-        return RedirectToPage();
+        return RedirectToPage(new { tab = NormalizeTab(tab) });
+    }
+
+    private static string NormalizeTab(string? tab)
+    {
+        return (tab?.ToLower().Trim()) switch
+        {
+            "visto" => "visto",
+            "valorados" => "valorados",
+            _ => "por-ver"
+        };
     }
 
     private Guid GetUserId()

@@ -102,7 +102,7 @@ public class TrendSyncBackgroundService : BackgroundService
             {
                 var existing = await mediaRepository.GetByExternalIdAsync(ext.ExternalId);
                 
-                double hypeScore = CalculateHypeScore(ext);
+                double hypeScore = HypeCalculator.CalculateHypeScore(ext);
 
                 if (existing != null)
                 {
@@ -129,6 +129,21 @@ public class TrendSyncBackgroundService : BackgroundService
                         existing.Title = ext.Title;
                     }
                     
+                    // Actualizar géneros si el elemento existente tenía solo un género genérico o estaba vacío
+                    if (ext.Genres.Any() && (existing.Tags.Count <= 1 || existing.Tags.Any(t => t.Name == "Película" || t.Name == "Serie")))
+                    {
+                        existing.Tags.Clear();
+                        foreach (var gName in ext.Genres)
+                        {
+                            if (!string.IsNullOrWhiteSpace(gName))
+                            {
+                                var tag = await tagRepository.GetOrCreateAsync(gName);
+                                if (!existing.Tags.Any(t => t.Id == tag.Id))
+                                    existing.Tags.Add(tag);
+                            }
+                        }
+                    }
+
                     existing.UpdatedAt = DateTime.UtcNow;
 
                     await mediaRepository.UpdateAsync(existing);
@@ -220,34 +235,6 @@ public class TrendSyncBackgroundService : BackgroundService
         await mediaRepository.SaveChangesAsync();
         await trendRepository.SaveChangesAsync();
         _logger.LogInformation("Sincronización de tendencias finalizada correctamente.");
-    }
-
-    private double CalculateHypeScore(ExternalMediaResult ext)
-    {
-        double hype = 50.0;
-        switch (ext.Type)
-        {
-            case MediaType.Anime:
-                if (ext.PopularityScore > 0)
-                    hype = Math.Min(98.0, 20.0 + Math.Log10(ext.PopularityScore + 1) * 13.0);
-                break;
-            case MediaType.Pelicula:
-                if (ext.PopularityScore > 0)
-                    hype = Math.Min(98.0, 30.0 + (ext.PopularityScore / 15.0));
-                break;
-            case MediaType.Manhwa:
-            case MediaType.Manhua:
-                if (ext.PopularityScore > 0)
-                    hype = Math.Min(98.0, 25.0 + Math.Log10(ext.PopularityScore + 1) * 15.0);
-                break;
-        }
-
-        if (ext.Rating > 0)
-        {
-            hype = (hype * 0.8) + (ext.Rating * 2.0);
-        }
-
-        return Math.Clamp(Math.Round(hype, 1), 10.0, 99.0);
     }
 
     private async Task<IEnumerable<ExternalMediaResult>> SafeFetchAsync(Func<Task<IEnumerable<ExternalMediaResult>>> fetchCall)

@@ -111,9 +111,11 @@
                                 <a asp-page="/Biblioteca" class="flex items-center px-4 py-3 text-sm text-gray-300 hover:text-white hover:bg-gray-900/60 transition-colors">
                                     <i class="fa-solid fa-bookmark w-5 text-brand-400"></i> Mi Biblioteca
                                 </a>
-                                <a asp-page="/Auth/Logout" class="flex items-center px-4 py-3 text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 border-t border-gray-900/50 transition-colors">
-                                    <i class="fa-solid fa-right-from-bracket w-5"></i> Cerrar Sesión
-                                </a>
+                                <form method="post" asp-page="/Auth/Logout" class="border-t border-gray-900/50">
+                                    <button type="submit" class="w-full flex items-center px-4 py-3 text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors text-left">
+                                        <i class="fa-solid fa-right-from-bracket w-5"></i> Cerrar Sesión
+                                    </button>
+                                </form>
                             </div>
                         </div>
                     }
@@ -165,9 +167,11 @@
                     <a asp-page="/Biblioteca" class="block px-3 py-2 rounded-lg text-base font-medium text-gray-300 hover:text-white hover:bg-gray-800">
                         <i class="fa-solid fa-bookmark w-6 text-brand-400"></i> Mi Biblioteca
                     </a>
-                    <a asp-page="/Auth/Logout" class="block px-3 py-2 rounded-lg text-base font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10">
-                        <i class="fa-solid fa-right-from-bracket w-6"></i> Cerrar Sesión
-                    </a>
+                    <form method="post" asp-page="/Auth/Logout">
+                        <button type="submit" class="w-full text-left block px-3 py-2 rounded-lg text-base font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10">
+                            <i class="fa-solid fa-right-from-bracket w-6"></i> Cerrar Sesión
+                        </button>
+                    </form>
                 </div>
             }
             else

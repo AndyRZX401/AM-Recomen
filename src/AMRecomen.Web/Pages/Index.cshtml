@@ -117,6 +117,64 @@ else
             </div>
         </div>
 
+        <!-- Sección Personalizada: Recomendado Para Ti (Usuarios autenticados con historial) -->
+        @if (Model.PersonalizedRecommendations.Any())
+        {
+            <section class="space-y-6 glass rounded-3xl p-6 sm:p-8 border border-brand-500/20 relative overflow-hidden">
+                <div class="absolute -top-24 -right-24 w-64 h-64 bg-brand-600/10 rounded-full blur-3xl pointer-events-none"></div>
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-800/80 pb-4">
+                    <div class="flex items-center space-x-3">
+                        <span class="text-2xl text-accentPink">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i>
+                        </span>
+                        <div>
+                            <h2 class="font-display font-extrabold text-2xl sm:text-3xl text-white">
+                                Recomendado <span class="bg-gradient-to-r from-brand-400 to-accentPink bg-clip-text text-transparent">Para Ti</span>
+                            </h2>
+                            <p class="text-xs text-gray-400">Seleccionado automáticamente según tus valoraciones y géneros favoritos en tu biblioteca</p>
+                        </div>
+                    </div>
+                    <a asp-page="/Biblioteca" class="text-xs font-semibold text-brand-400 hover:text-brand-300 transition-colors flex items-center space-x-1 self-start sm:self-center">
+                        <span>Ver mi biblioteca</span>
+                        <i class="fa-solid fa-arrow-right text-[10px]"></i>
+                    </a>
+                </div>
+
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-5">
+                    @foreach (var rec in Model.PersonalizedRecommendations)
+                    {
+                        <a asp-page="/Detalle" asp-route-slug="@rec.Slug" class="group flex flex-col glass glass-hover rounded-2xl overflow-hidden glow-card border border-white/5">
+                            <div class="relative aspect-[2/3] w-full overflow-hidden bg-gray-900">
+                                <img src="@rec.CoverImageUrl" alt="@rec.Title" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
+                                <span class="absolute top-3 left-3 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider backdrop-blur-md border border-white/10
+                                      @(rec.Type == AMRecomen.Domain.Enums.MediaType.Anime ? "bg-red-500/80 text-white" :
+                                        rec.Type == AMRecomen.Domain.Enums.MediaType.Manhwa ? "bg-blue-500/80 text-white" :
+                                        rec.Type == AMRecomen.Domain.Enums.MediaType.Manhua ? "bg-green-500/80 text-white" :
+                                        rec.Type == AMRecomen.Domain.Enums.MediaType.Pelicula ? "bg-yellow-500/80 text-black" : "bg-purple-500/80 text-white")">
+                                    @rec.Type
+                                </span>
+                                <div class="absolute bottom-3 right-3 px-2 py-1 bg-black/80 backdrop-blur-md rounded-md border border-white/5 flex items-center space-x-1">
+                                    <i class="fa-solid fa-star text-yellow-500 text-[10px]"></i>
+                                    <span class="text-xs font-bold text-white">@rec.Rating</span>
+                                </div>
+                            </div>
+                            <div class="p-4 flex flex-col flex-grow justify-between space-y-2">
+                                <h3 class="font-display font-bold text-white text-sm group-hover:text-brand-400 transition-colors line-clamp-1">
+                                    @rec.Title
+                                </h3>
+                                <div class="flex flex-wrap gap-1">
+                                    @foreach (var tag in rec.Tags.Take(2))
+                                    {
+                                        <span class="px-2 py-0.5 bg-gray-900/80 border border-gray-800 rounded text-[10px] text-gray-400">@tag.Name</span>
+                                    }
+                                </div>
+                            </div>
+                        </a>
+                    }
+                </div>
+            </section>
+        }
+
         <!-- Secciones de Contenido (Top 3) -->
         @{
             var sections = new List<(string Name, string Icon, string ColorClass, string TypeParam, IEnumerable<MediaItem> Items)>

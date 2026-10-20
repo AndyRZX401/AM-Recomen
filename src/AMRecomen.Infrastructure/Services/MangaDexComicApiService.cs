@@ -40,6 +40,7 @@ public class MangaDexComicApiService : IComicApiService
             {
                 return GetMockComics().Where(m => m.Title.Contains(query, StringComparison.OrdinalIgnoreCase));
             }
+            await EnrichWithStatisticsAsync(results);
             return results;
         }
         catch
@@ -68,6 +69,7 @@ public class MangaDexComicApiService : IComicApiService
             {
                 return GetMockComics().Where(c => c.Type == (isManhwa ? MediaType.Manhwa : MediaType.Manhua));
             }
+            await EnrichWithStatisticsAsync(results);
             return results;
         }
         catch
@@ -101,16 +103,96 @@ public class MangaDexComicApiService : IComicApiService
     private IEnumerable<ExternalMediaResult> ParseMangaDexArray(JsonElement arrayElement)
     {
         var list = new List<ExternalMediaResult>();
+        int index = 0;
         foreach (var item in arrayElement.EnumerateArray())
         {
-            var result = ParseMangaDexItem(item);
+            var result = ParseMangaDexItem(item, index);
             if (result != null)
+            {
                 list.Add(result);
+                index++;
+            }
         }
         return list;
     }
 
-    private ExternalMediaResult? ParseMangaDexItem(JsonElement item)
+    private async Task EnrichWithStatisticsAsync(List<ExternalMediaResult> items)
+    {
+        if (!items.Any())
+            return;
+
+        try
+        {
+            var queryParams = string.Join("&", items.Select(i => $"manga%5B%5D={Uri.EscapeDataString(i.ExternalId.Replace("mangadex_", ""))}"));
+            var response = await _httpClient.GetAsync($"statistics/manga?{queryParams}");
+            if (!response.IsSuccessStatusCode)
+                return;
+
+            var jsonString = await response.Content.ReadAsStringAsync();
+            using var doc = JsonDocument.Parse(jsonString);
+            if (!doc.RootElement.TryGetProperty("statistics", out var statsElem) || statsElem.ValueKind != JsonValueKind.Object)
+                return;
+
+            foreach (var item in items)
+            {
+                var rawId = item.ExternalId.Replace("mangadex_", "");
+                if (statsElem.TryGetProperty(rawId, out var mangaStat))
+                {
+                    if (mangaStat.TryGetProperty("follows", out var followsProp) && followsProp.ValueKind == JsonValueKind.Number)
+                    {
+                        var follows = followsProp.GetDouble();
+                        if (follows > 0)
+                            item.PopularityScore = follows;
+                    }
+
+                    if (mangaStat.TryGetProperty("rating", out var ratingObj) && ratingObj.ValueKind == JsonValueKind.Object)
+                    {
+                        if (ratingObj.TryGetProperty("bayesian", out var bayesianProp) && bayesianProp.ValueKind == JsonValueKind.Number)
+                        {
+                            item.Rating = Math.Round(bayesianProp.GetDouble(), 1);
+                        }
+                        else if (ratingObj.TryGetProperty("average", out var avgProp) && avgProp.ValueKind == JsonValueKind.Number)
+                        {
+                            item.Rating = Math.Round(avgProp.GetDouble(), 1);
+                        }
+                    }
+                }
+            }
+        }
+        catch
+        {
+            // Mantener valores calculados por ranking de respaldo si el endpoint de estadísticas falla
+        }
+    }
+
+    private static readonly Dictionary<string, string> GenreTranslations = new(StringComparer.OrdinalIgnoreCase)
+    {
+        { "Action", "Acción" },
+        { "Adventure", "Aventura" },
+        { "Comedy", "Comedia" },
+        { "Drama", "Drama" },
+        { "Fantasy", "Fantasía" },
+        { "Historical", "Histórico" },
+        { "Horror", "Terror" },
+        { "Martial Arts", "Artes Marciales" },
+        { "Mystery", "Misterio" },
+        { "Psychological", "Psicológico" },
+        { "Reincarnation", "Reencarnación" },
+        { "Romance", "Romance" },
+        { "Sci-Fi", "Ciencia Ficción" },
+        { "Slice of Life", "Recuentos de la Vida" },
+        { "Supernatural", "Sobrenatural" },
+        { "Thriller", "Suspenso" },
+        { "Tragedy", "Tragedia" },
+        { "Wuxia", "Cultivación" },
+        { "Isekai", "Isekai" },
+        { "Magic", "Magia" },
+        { "Monsters", "Monstruos" },
+        { "Demons", "Demonios" },
+        { "School Life", "Vida Escolar" }
+    };
+
+    private ExternalMediaResult? ParseMangaDexItem(JsonElement item, int rankIndex = 0)
     {
         try
         {
@@ -200,23 +282,41 @@ public class MangaDexComicApiService : IComicApiService
                 : $"https://uploads.mangadex.org/covers/{mangaId}/{fileName}";
 
             var status = attributes.TryGetProperty("status", out var statusProp) ? statusProp.GetString() ?? "" : "";
+
+            DateTime? releaseDate = null;
+            if (attributes.TryGetProperty("year", out var yearProp) && yearProp.ValueKind == JsonValueKind.Number)
+            {
+                var year = yearProp.GetInt32();
+                if (year >= 1950 && year <= 2100)
+                {
+                    releaseDate = new DateTime(year, 1, 1);
+                }
+            }
             
-            // Puntuación ficticia/seguidores
-            var score = 0.0;
-            var popularity = 0.0;
-            
-            // Intentar leer tags
+            // Intentar leer tags y traducirlos al español
             var genres = new List<string>();
             if (attributes.TryGetProperty("tags", out var tagsProp) && tagsProp.ValueKind == JsonValueKind.Array)
             {
                 foreach (var tag in tagsProp.EnumerateArray())
                 {
-                    var tagAttr = tag.GetProperty("attributes");
-                    var tagName = tagAttr.GetProperty("name").GetProperty("en").GetString();
-                    if (!string.IsNullOrEmpty(tagName))
-                        genres.Add(tagName);
+                    if (tag.TryGetProperty("attributes", out var tagAttr) &&
+                        tagAttr.TryGetProperty("name", out var nameObj) &&
+                        nameObj.TryGetProperty("en", out var enTag))
+                    {
+                        var tagName = enTag.GetString();
+                        if (!string.IsNullOrEmpty(tagName))
+                        {
+                            var translatedTag = GenreTranslations.TryGetValue(tagName, out var esTag) ? esTag : tagName;
+                            if (!genres.Contains(translatedTag))
+                                genres.Add(translatedTag);
+                        }
+                    }
                 }
             }
+
+            // Respaldo dinámico según posición antes de enriquecer con estadísticas reales
+            double fallbackPopularity = Math.Max(1500, 25000 - (rankIndex * 2200));
+            double fallbackRating = Math.Round(Math.Max(7.5, 8.8 - (rankIndex * 0.1)), 1);
 
             return new ExternalMediaResult
             {
@@ -229,10 +329,10 @@ public class MangaDexComicApiService : IComicApiService
                 Synopsis = synopsis,
                 CoverImageUrl = coverUrl,
                 Type = mediaType,
-                Rating = 8.0, // MangaDex no da rating en listado básico
+                Rating = fallbackRating,
                 Status = status,
-                ReleaseDate = null,
-                PopularityScore = 500,
+                ReleaseDate = releaseDate,
+                PopularityScore = fallbackPopularity,
                 Genres = genres
             };
         }

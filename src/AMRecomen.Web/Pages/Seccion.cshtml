@@ -27,9 +27,61 @@
         </div>
         
         <!-- Total de elementos indicados -->
-        <div class="text-sm text-gray-400 font-semibold bg-gray-900/60 border border-gray-800 px-4 py-2 rounded-xl">
+        <div class="text-sm text-gray-400 font-semibold bg-gray-900/60 border border-gray-800 px-4 py-2 rounded-xl self-start md:self-center">
             Total indexado: <span class="text-brand-400">@Model.TotalItems</span>
         </div>
+    </div>
+
+    <!-- Barra de Filtros por Género y Ordenamiento -->
+    <div class="glass rounded-2xl p-4 sm:p-5 border border-gray-800/80 space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div class="flex items-center space-x-2 text-xs font-bold uppercase tracking-wider text-gray-400">
+                <i class="fa-solid fa-sliders text-brand-400"></i>
+                <span>Ordenar por:</span>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                @{
+                    var sortOptions = new List<(string Key, string Label, string Icon)>
+                    {
+                        ("hype", "Más Populares", "fa-fire"),
+                        ("rating", "Mejor Valorados", "fa-star"),
+                        ("recientes", "Más Recientes", "fa-calendar-days"),
+                        ("titulo", "A - Z", "fa-arrow-down-a-z")
+                    };
+                }
+                @foreach (var opt in sortOptions)
+                {
+                    bool active = Model.SortBy == opt.Key;
+                    <a asp-page="/Seccion" asp-route-tipo="@Model.Tipo" asp-route-tag="@Model.SelectedTag" asp-route-orden="@opt.Key"
+                       class="px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center space-x-1.5 border
+                              @(active ? "bg-brand-600 text-white border-brand-500 shadow-md shadow-brand-500/20" : "bg-gray-900/60 text-gray-400 border-gray-800 hover:text-white hover:border-gray-700")">
+                        <i class="fa-solid @opt.Icon text-[11px]"></i>
+                        <span>@opt.Label</span>
+                    </a>
+                }
+            </div>
+        </div>
+
+        @if (Model.AvailableTags.Any())
+        {
+            <div class="border-t border-gray-800/60 pt-3 flex flex-wrap items-center gap-2">
+                <span class="text-xs font-bold uppercase tracking-wider text-gray-500 mr-1">Género:</span>
+                <a asp-page="/Seccion" asp-route-tipo="@Model.Tipo" asp-route-orden="@Model.SortBy"
+                   class="px-3 py-1 rounded-lg text-xs font-semibold transition-all border
+                          @(string.IsNullOrEmpty(Model.SelectedTag) ? "bg-brand-500/20 text-brand-400 border-brand-500/40" : "bg-gray-900/40 text-gray-400 border-gray-800 hover:text-white")">
+                    Todos
+                </a>
+                @foreach (var tag in Model.AvailableTags)
+                {
+                    bool isTagSelected = string.Equals(Model.SelectedTag, tag, StringComparison.OrdinalIgnoreCase);
+                    <a asp-page="/Seccion" asp-route-tipo="@Model.Tipo" asp-route-tag="@tag" asp-route-orden="@Model.SortBy"
+                       class="px-3 py-1 rounded-lg text-xs font-semibold transition-all border
+                              @(isTagSelected ? "bg-brand-500/20 text-brand-400 border-brand-500/40" : "bg-gray-900/40 text-gray-400 border-gray-800 hover:text-white")">
+                        @tag
+                    </a>
+                }
+            </div>
+        }
     </div>
 
     @if (!Model.Items.Any())
@@ -91,7 +143,7 @@
                 <!-- Anterior -->
                 @if (Model.PageNumber > 1)
                 {
-                    <a asp-page="/Seccion" asp-route-tipo="@Model.Tipo" asp-route-p="@(Model.PageNumber - 1)" 
+                    <a asp-page="/Seccion" asp-route-tipo="@Model.Tipo" asp-route-tag="@Model.SelectedTag" asp-route-orden="@Model.SortBy" asp-route-p="@(Model.PageNumber - 1)" 
                        class="px-4 py-2.5 bg-gray-900 border border-gray-800 rounded-xl text-sm font-semibold text-gray-400 hover:text-white hover:border-gray-700 transition-all">
                         <i class="fa-solid fa-chevron-left mr-1"></i> Anterior
                     </a>
@@ -111,7 +163,7 @@
                 <!-- Siguiente -->
                 @if (Model.PageNumber < Model.TotalPages)
                 {
-                    <a asp-page="/Seccion" asp-route-tipo="@Model.Tipo" asp-route-p="@(Model.PageNumber + 1)" 
+                    <a asp-page="/Seccion" asp-route-tipo="@Model.Tipo" asp-route-tag="@Model.SelectedTag" asp-route-orden="@Model.SortBy" asp-route-p="@(Model.PageNumber + 1)" 
                        class="px-4 py-2.5 bg-gray-900 border border-gray-800 rounded-xl text-sm font-semibold text-gray-400 hover:text-white hover:border-gray-700 transition-all">
                         Siguiente <i class="fa-solid fa-chevron-right ml-1"></i>
                     </a>

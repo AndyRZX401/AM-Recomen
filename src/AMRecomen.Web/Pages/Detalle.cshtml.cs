@@ -15,15 +15,21 @@ public class DetalleModel : PageModel
 {
     private readonly IMediaItemRepository _mediaRepository;
     private readonly ILibraryRepository _libraryRepository;
+    private readonly ITrendMetricRepository _trendRepository;
 
-    public DetalleModel(IMediaItemRepository mediaRepository, ILibraryRepository libraryRepository)
+    public DetalleModel(
+        IMediaItemRepository mediaRepository, 
+        ILibraryRepository libraryRepository,
+        ITrendMetricRepository trendRepository)
     {
         _mediaRepository = mediaRepository;
         _libraryRepository = libraryRepository;
+        _trendRepository = trendRepository;
     }
 
     public MediaItem Media { get; set; } = null!;
     public IEnumerable<MediaItem> Recomendaciones { get; set; } = new List<MediaItem>();
+    public IEnumerable<TrendMetric> TrendHistory { get; set; } = new List<TrendMetric>();
     
     public LibraryItem? LibraryEntry { get; set; }
 
@@ -45,12 +51,11 @@ public class DetalleModel : PageModel
             LibraryEntry = await _libraryRepository.GetItemAsync(userId, Media.Id);
         }
 
-        // Cargar recomendaciones: los más populares de la misma categoría que no sean el actual
-        var trendingOfSameType = await _mediaRepository.GetTopTrendingAsync(Media.Type, 5);
-        Recomendaciones = trendingOfSameType
-            .Where(m => m.Id != Media.Id)
-            .Take(4)
-            .ToList();
+        // Cargar historial de métricas de tendencia
+        TrendHistory = await _trendRepository.GetByMediaItemIdAsync(Media.Id, 5);
+
+        // Cargar recomendaciones similares basadas en coincidencia de géneros (Tags), categoría y HypeScore
+        Recomendaciones = await _mediaRepository.GetSimilarMediaAsync(Media, 4);
 
         return Page();
     }

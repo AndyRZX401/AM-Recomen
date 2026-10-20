@@ -1,0 +1,30 @@
+@page
+@model AMRecomen.Web.Pages.Auth.AccessDeniedModel
+@{
+    ViewData["Title"] = "Acceso Denegado";
+}
+
+<div class="min-h-[70vh] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-lg w-full glass rounded-3xl p-8 sm:p-10 text-center space-y-6 border border-white/10 shadow-2xl animate-fade-in">
+        <div class="inline-flex p-5 bg-amber-500/10 rounded-full text-amber-400 border border-amber-500/20">
+            <i class="fa-solid fa-lock text-4xl"></i>
+        </div>
+
+        <div class="space-y-2">
+            <h1 class="font-display font-extrabold text-3xl text-white">Acceso Denegado</h1>
+            <p class="text-gray-400 text-sm leading-relaxed">
+                No tienes permisos suficientes para acceder a esta sección o necesitas iniciar sesión con una cuenta autorizada.
+            </p>
+        </div>
+
+        <div class="flex flex-col sm:flex-row gap-3 justify-center pt-2">
+            <a asp-page="/Auth/Login" class="inline-flex items-center justify-center px-6 py-3 bg-gradient-to-r from-brand-600 to-brand-700 hover:from-brand-500 hover:to-brand-600 text-white font-semibold rounded-xl transition-all shadow-lg shadow-brand-500/20 space-x-2 text-sm">
+                <i class="fa-solid fa-right-to-bracket"></i>
+                <span>Iniciar Sesión</span>
+            </a>
+            <a asp-page="/Index" class="inline-flex items-center justify-center px-6 py-3 bg-gray-900 hover:bg-gray-800 text-gray-300 font-semibold rounded-xl border border-gray-800 transition-all text-sm">
+                Volver al Inicio
+            </a>
+        </div>
+    </div>
+</div>

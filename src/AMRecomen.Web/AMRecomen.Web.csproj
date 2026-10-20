@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <ItemGroup>
     <ProjectReference Include="..\AMRecomen.Infrastructure\AMRecomen.Infrastructure.csproj" />
@@ -16,6 +16,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>18939b98-e312-4399-8a88-d2685e6a48ca</UserSecretsId>
   </PropertyGroup>
 
 </Project>

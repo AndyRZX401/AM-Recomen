@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
 
 // Add services to the container.
 builder.Services.AddRazorPages();
@@ -21,7 +22,9 @@ builder.Services.AddControllers();
 builder.Services.AddMemoryCache();
 
 // 1. Configurar base de datos con resiliencia de arranque (PostgreSQL principal, SQLite de respaldo)
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+var connectionString = Environment.GetEnvironmentVariable("DATABASE_URL")
+                       ?? builder.Configuration["DATABASE_URL"]
+                       ?? builder.Configuration.GetConnectionString("DefaultConnection");
 
 // Convertir automáticamente formato de URI de Render (postgres:// o postgresql://) a formato estándar de ADO.NET compatible con Npgsql
 if (!string.IsNullOrEmpty(connectionString) && (connectionString.StartsWith("postgres://") || connectionString.StartsWith("postgresql://")))

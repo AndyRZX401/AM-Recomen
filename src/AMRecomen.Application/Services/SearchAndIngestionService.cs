@@ -47,8 +47,13 @@ public class SearchAndIngestionService
         var localResults = await _mediaRepository.SearchAsync(query, 12);
         var localList = localResults.ToList();
 
-        // Si tenemos resultados locales decentes (ej: 3 o más), los retornamos para evitar sobrecargar las APIs externas
-        if (localList.Count >= 3)
+        // Solo omitir la consulta externa si ya hay coincidencia exacta de título o suficientes resultados muy relevantes (>= 6)
+        bool hasExactMatch = localList.Any(m => 
+            m.Title.Equals(query, StringComparison.OrdinalIgnoreCase) || 
+            m.EnglishTitle.Equals(query, StringComparison.OrdinalIgnoreCase) ||
+            m.OriginalTitle.Equals(query, StringComparison.OrdinalIgnoreCase));
+
+        if (hasExactMatch && localList.Count >= 4 || localList.Count >= 8)
         {
             return localList;
         }
@@ -84,8 +89,8 @@ public class SearchAndIngestionService
                 continue;
             }
 
-            // Calcular HypeScore (Popularidad/Fama)
-            double hypeScore = CalculateHypeScore(ext);
+            // Calcular HypeScore (Popularidad/Fama) usando calculadora compartida
+            double hypeScore = HypeCalculator.CalculateHypeScore(ext);
 
             // Determinar sufijo de Slug para evitar colisiones y optimizar SEO
             string typeSuffix = ext.Type switch
@@ -154,48 +159,6 @@ public class SearchAndIngestionService
         // 4. Volver a buscar localmente para retornar resultados con relaciones cargadas correctamente
         var finalResults = await _mediaRepository.SearchAsync(query, 12);
         return finalResults;
-    }
-
-    private double CalculateHypeScore(ExternalMediaResult ext)
-    {
-        // Puntuación de Hype entre 15% y 98% basada en el tipo de contenido y métrica
-        double hype = 50.0; // Base
-
-        switch (ext.Type)
-        {
-            case MediaType.Anime:
-                // MAL members suele ir de 0 a 3,000,000. Escalamos logarítmicamente.
-                if (ext.PopularityScore > 0)
-                {
-                    hype = Math.Min(98.0, 20.0 + Math.Log10(ext.PopularityScore + 1) * 13.0);
-                }
-                break;
-
-            case MediaType.Pelicula:
-                // TMDb popularity suele ser de 0 a 2000+.
-                if (ext.PopularityScore > 0)
-                {
-                    hype = Math.Min(98.0, 30.0 + (ext.PopularityScore / 15.0));
-                }
-                break;
-
-            case MediaType.Manhwa:
-            case MediaType.Manhua:
-                // MangaDex followedCount va de 0 a 100,000+.
-                if (ext.PopularityScore > 0)
-                {
-                    hype = Math.Min(98.0, 25.0 + Math.Log10(ext.PopularityScore + 1) * 15.0);
-                }
-                break;
-        }
-
-        // Añadimos una pequeña variación basada en la valoración (Rating) si existe
-        if (ext.Rating > 0)
-        {
-            hype = (hype * 0.8) + (ext.Rating * 2.0); // 20% peso al Rating
-        }
-
-        return Math.Clamp(Math.Round(hype, 1), 10.0, 99.0);
     }
 
     private async Task<IEnumerable<ExternalMediaResult>> SafeExecuteAsync(Func<Task<IEnumerable<ExternalMediaResult>>> apiCall)
