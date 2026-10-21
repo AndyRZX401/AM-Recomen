@@ -105,18 +105,23 @@ public class TrendSyncBackgroundService : BackgroundService
 
         _logger.LogInformation("Sincronización: se obtuvieron {Count} elementos de tendencias de APIs externas.", allTrends.Count);
 
-        // Procesar primero las obras curadas (que ya tienen sinopsis en español) para que el inicio cargue al instante
-        var orderedTrends = allTrends.OrderBy(t => t.NeedTranslation ? 1 : 0).ToList();
-        bool curatedBatchCleared = false;
+        // Priorizar primero los Top 3 de cada categoría para que la portada de Inicio cargue en segundos con tendencias en vivo
+        var topPriority = allTrends
+            .GroupBy(t => t.Type)
+            .SelectMany(g => g.OrderByDescending(x => HypeCalculator.CalculateHypeScore(x)).Take(3))
+            .ToList();
+        var remaining = allTrends.Except(topPriority).ToList();
+        var orderedTrends = topPriority.Concat(remaining).ToList();
+        int processedCount = 0;
 
         foreach (var ext in orderedTrends)
         {
-            if (ext.NeedTranslation && !curatedBatchCleared)
+            if (processedCount == topPriority.Count && topPriority.Count > 0)
             {
-                curatedBatchCleared = true;
                 await mediaRepository.SaveChangesAsync();
                 InvalidateTrendingCache();
             }
+            processedCount++;
 
             try
             {

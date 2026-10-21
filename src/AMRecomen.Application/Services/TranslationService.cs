@@ -1,5 +1,6 @@
 using System;
 using System.Net.Http;
+using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 
@@ -12,8 +13,11 @@ public class TranslationService
     public TranslationService(HttpClient httpClient)
     {
         _httpClient = httpClient;
-        // Timeout corto para evitar colgar la ingesta de datos
         _httpClient.Timeout = TimeSpan.FromSeconds(4);
+        if (!_httpClient.DefaultRequestHeaders.Contains("User-Agent"))
+        {
+            _httpClient.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0");
+        }
     }
 
     public async Task<string> TranslateToSpanishAsync(string text)
@@ -21,35 +25,71 @@ public class TranslationService
         if (string.IsNullOrWhiteSpace(text))
             return string.Empty;
 
+        var textToTranslate = text.Length > 900 ? text.Substring(0, 900) : text;
+
+        // 1. Motor rápido principal (Google GTX JSON endpoint - <100ms, sin avisos de cuota de MyMemory)
         try
         {
-            // Truncar para cumplir con límites de uso de la API MyMemory (máx. 1000 caracteres por llamada gratuita)
-            var textToTranslate = text.Length > 850 ? text.Substring(0, 850) : text;
-            
-            var url = $"https://api.mymemory.translated.net/get?q={Uri.EscapeDataString(textToTranslate)}&langpair=en|es";
-            
-            var response = await _httpClient.GetAsync(url);
-            if (!response.IsSuccessStatusCode)
-                return text; // Si falla, devolvemos el texto original en inglés
-
-            var jsonString = await response.Content.ReadAsStringAsync();
-            using var doc = JsonDocument.Parse(jsonString);
-            if (doc.RootElement.TryGetProperty("responseData", out var respData) &&
-                respData.TryGetProperty("translatedText", out var transText))
+            var gtxUrl = $"https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=es&dt=t&q={Uri.EscapeDataString(textToTranslate)}";
+            var gtxResp = await _httpClient.GetAsync(gtxUrl);
+            if (gtxResp.IsSuccessStatusCode)
             {
-                var translated = transText.GetString();
-                if (!string.IsNullOrWhiteSpace(translated))
+                var json = await gtxResp.Content.ReadAsStringAsync();
+                using var doc = JsonDocument.Parse(json);
+                if (doc.RootElement.ValueKind == JsonValueKind.Array && doc.RootElement.GetArrayLength() > 0)
                 {
-                    if (text.Length > 850)
-                        translated += "...";
-                        
-                    return translated;
+                    var sentences = doc.RootElement[0];
+                    if (sentences.ValueKind == JsonValueKind.Array)
+                    {
+                        var sb = new StringBuilder();
+                        foreach (var seg in sentences.EnumerateArray())
+                        {
+                            if (seg.ValueKind == JsonValueKind.Array && seg.GetArrayLength() > 0 && seg[0].ValueKind == JsonValueKind.String)
+                            {
+                                sb.Append(seg[0].GetString());
+                            }
+                        }
+                        var result = sb.ToString().Trim();
+                        if (!string.IsNullOrWhiteSpace(result))
+                        {
+                            if (text.Length > 900)
+                                result += "...";
+                            return result;
+                        }
+                    }
                 }
             }
         }
         catch
         {
-            // Fallback silencioso al texto original en inglés
+            // Continuar al respaldo MyMemory
+        }
+
+        // 2. Respaldo secundario (MyMemory)
+        try
+        {
+            var shortText = textToTranslate.Length > 450 ? textToTranslate.Substring(0, 450) : textToTranslate;
+            var url = $"https://api.mymemory.translated.net/get?q={Uri.EscapeDataString(shortText)}&langpair=en|es";
+            var response = await _httpClient.GetAsync(url);
+            if (response.IsSuccessStatusCode)
+            {
+                var jsonString = await response.Content.ReadAsStringAsync();
+                using var doc = JsonDocument.Parse(jsonString);
+                if (doc.RootElement.TryGetProperty("responseData", out var respData) &&
+                    respData.TryGetProperty("translatedText", out var transText))
+                {
+                    var translated = transText.GetString();
+                    if (!string.IsNullOrWhiteSpace(translated) &&
+                        !translated.Contains("MYMEMORY WARNING", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return translated;
+                    }
+                }
+            }
+        }
+        catch
+        {
+            // Fallback silencioso al texto original
         }
 
         return text;

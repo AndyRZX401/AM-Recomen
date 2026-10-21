@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
 using AMRecomen.Domain.Interfaces;
+using AMRecomen.Application.Services;
 
 namespace AMRecomen.Web.Controllers;
 
@@ -12,11 +13,16 @@ namespace AMRecomen.Web.Controllers;
 public class SuggestionsController : ControllerBase
 {
     private readonly IMediaItemRepository _mediaRepository;
+    private readonly SearchAndIngestionService _searchService;
     private readonly IMemoryCache _cache;
 
-    public SuggestionsController(IMediaItemRepository mediaRepository, IMemoryCache cache)
+    public SuggestionsController(
+        IMediaItemRepository mediaRepository,
+        SearchAndIngestionService searchService,
+        IMemoryCache cache)
     {
         _mediaRepository = mediaRepository;
+        _searchService = searchService;
         _cache = cache;
     }
 
@@ -32,7 +38,13 @@ public class SuggestionsController : ControllerBase
         if (!_cache.TryGetValue(cacheKey, out object? cachedSuggestions) || cachedSuggestions == null)
         {
             // Buscar coincidencias locales rápidas con AsNoTracking
-            var items = await _mediaRepository.SearchAsync(queryKey, 6);
+            var items = (await _mediaRepository.SearchAsync(queryKey, 6)).ToList();
+
+            // Si hay pocas coincidencias locales y el término tiene al menos 3 letras, buscar e ingerir en vivo desde las APIs globales
+            if (items.Count < 3 && queryKey.Length >= 3)
+            {
+                items = (await _searchService.SearchAndIngestAsync(queryKey)).Take(6).ToList();
+            }
             
             cachedSuggestions = items.Select(i => new
             {
@@ -42,9 +54,12 @@ public class SuggestionsController : ControllerBase
                 cover = i.CoverImageUrl
             }).ToList();
 
-            var cacheOptions = new MemoryCacheEntryOptions()
-                .SetAbsoluteExpiration(TimeSpan.FromMinutes(5)); // 5 minutos de duración de caché
-            _cache.Set(cacheKey, cachedSuggestions, cacheOptions);
+            if (items.Any())
+            {
+                var cacheOptions = new MemoryCacheEntryOptions()
+                    .SetAbsoluteExpiration(TimeSpan.FromMinutes(5));
+                _cache.Set(cacheKey, cachedSuggestions, cacheOptions);
+            }
         }
 
         return Ok(cachedSuggestions);
